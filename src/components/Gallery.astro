@@ -1,0 +1,132 @@
+---
+import type { Producto } from '../lib/catalogo';
+
+interface Props {
+  producto: Producto;
+}
+const { producto: p } = Astro.props;
+---
+
+<div class="galeria" data-galeria>
+  <ul class="galeria__pista" data-pista tabindex="0" aria-label={`Fotos de ${p.nombre}`}>
+    {p.fotos.map((f, i) => (
+      <li>
+        <img
+          src={f.m}
+          srcset={`${f.s} 420w, ${f.m} 840w`}
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          alt={i === 0 ? `${p.descripcion}: ${p.nombre}` : `${p.nombre}, foto ${i + 1}`}
+          width="840"
+          height="1050"
+          loading={i === 0 ? 'eager' : 'lazy'}
+          fetchpriority={i === 0 ? 'high' : undefined}
+        />
+      </li>
+    ))}
+  </ul>
+  {p.fotos.length > 1 && (
+    <div class="galeria__miniaturas" role="group" aria-label="Elegir foto">
+      {p.fotos.map((f, i) => (
+        <button type="button" data-mini={i} aria-label={`Ver foto ${i + 1}`} aria-current={i === 0 ? 'true' : undefined}>
+          <img src={f.s} alt="" width="80" height="100" loading="lazy" />
+        </button>
+      ))}
+    </div>
+  )}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-galeria]').forEach((g) => {
+    const pista = g.querySelector<HTMLElement>('[data-pista]')!;
+    const minis = [...g.querySelectorAll<HTMLButtonElement>('[data-mini]')];
+    const marcar = (i: number) => minis.forEach((m, k) => (k === i ? m.setAttribute('aria-current', 'true') : m.removeAttribute('aria-current')));
+    const ir = (i: number) => {
+      pista.scrollTo({ left: pista.clientWidth * i, behavior: 'smooth' });
+      marcar(i);
+    };
+    minis.forEach((m, i) => m.addEventListener('click', () => ir(i)));
+    pista.addEventListener('scroll', () => marcar(Math.round(pista.scrollLeft / pista.clientWidth)), { passive: true });
+    window.addEventListener('midam:foto', (e) => ir((e as CustomEvent<number>).detail));
+  });
+</script>
+
+<style>
+  .galeria {
+    display: grid;
+    gap: var(--e-2);
+    min-width: 0;
+  }
+
+  .galeria__pista {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin-inline: calc(var(--margen) * -1);
+    background: var(--agua-suave);
+  }
+
+  .galeria__pista::-webkit-scrollbar {
+    display: none;
+  }
+
+  .galeria__pista li {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  .galeria__pista img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+
+  .galeria__miniaturas {
+    display: flex;
+    gap: var(--e-2);
+  }
+
+  .galeria__miniaturas button {
+    width: 3.5rem;
+    border-radius: var(--radio);
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color var(--rapido);
+  }
+
+  .galeria__miniaturas button[aria-current] {
+    border-color: var(--tinta);
+  }
+
+  .galeria__miniaturas img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+
+  @media (min-width: 1024px) {
+    .galeria {
+      grid-template-columns: 4.5rem minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .galeria__pista {
+      grid-column: 2;
+      grid-row: 1;
+      margin-inline: 0;
+      border-radius: var(--radio);
+    }
+
+    .galeria__miniaturas {
+      grid-column: 1;
+      grid-row: 1;
+      flex-direction: column;
+    }
+
+    .galeria__miniaturas button {
+      width: 100%;
+    }
+  }
+</style>

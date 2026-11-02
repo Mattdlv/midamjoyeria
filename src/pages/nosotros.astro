@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+import ListingHead from '../components/ListingHead.astro';
+import Pending from '../components/Pending.astro';
+import { CONTACTO } from '../lib/catalogo';
+---
+
+<Base titulo="Nosotros" descripcion="Quiénes somos en Midam Joyería.">
+  <ListingHead etiqueta="Detrás de escena" titulo="Nosotros" doodle="corazon" />
+  <div class="contenedor pagina">
+    <blockquote>
+      <p>Nacemos con el claro propósito de redefinir la elegancia contemporánea…</p>
+      <cite>Manifiesto de Midam en Instagram</cite>
+    </blockquote>
+    <p class="datos">Estamos en {CONTACTO.ciudad}. {CONTACTO.horario}.</p>
+    <a class="boton boton--borde" href={CONTACTO.instagram} target="_blank" rel="noopener">Seguinos en {CONTACTO.usuario}</a>
+    <div class="falta">
+      <Pending titulo="La historia completa">
+        Faltan el texto completo del manifiesto, una foto del equipo y cómo empezó Midam.
+      </Pending>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .pagina {
+    padding-block: var(--e-7) var(--e-8);
+    max-width: 52rem;
+  }
+
+  blockquote {
+    margin: 0;
+  }
+
+  blockquote p {
+    font-family: var(--f-titulo);
+    font-size: var(--t-h1);
+    font-weight: 360;
+    line-height: 1.08;
+  }
+
+  cite {
+    display: block;
+    margin-top: var(--e-3);
+    color: var(--tinta-suave);
+    font-style: normal;
+    font-size: var(--t-detalle);
+  }
+
+  .datos {
+    margin-block: var(--e-5);
+  }
+
+  .falta {
+    margin-top: var(--e-7);
+  }
+</style>

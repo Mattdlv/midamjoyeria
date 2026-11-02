@@ -1,0 +1,88 @@
+---
+// Encabezado compartido por las páginas de catálogo.
+import Doodle from './Doodle.astro';
+
+interface Props {
+  etiqueta: string;
+  titulo: string;
+  promesa?: string;
+  cantidad?: number;
+  doodle?: 'corazon' | 'destello' | 'espiral' | 'estrella';
+  migas?: { href: string; texto: string }[];
+}
+const { etiqueta, titulo, promesa, cantidad, doodle = 'destello', migas = [] } = Astro.props;
+---
+
+<header class="listado">
+  <div class="contenedor">
+    {migas.length > 0 && (
+      <nav class="migas" aria-label="Ruta">
+        {migas.map((m) => <><a href={m.href}>{m.texto}</a><span aria-hidden="true">/</span></>)}
+        <span aria-current="page">{titulo}</span>
+      </nav>
+    )}
+    <p class="etiqueta listado__etiqueta">{etiqueta}</p>
+    <h1>{titulo}{cantidad !== undefined && <sup>{cantidad}</sup>}</h1>
+    {promesa && <p class="listado__promesa">{promesa}</p>}
+    <Doodle tipo={doodle} tamano={44} class="listado__doodle" />
+  </div>
+</header>
+
+<style>
+  .listado {
+    background: var(--agua);
+    padding-block: var(--e-5) var(--e-6);
+  }
+
+  .listado .contenedor {
+    position: relative;
+  }
+
+  .migas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-1) var(--e-2);
+    font-size: var(--t-detalle);
+    margin-bottom: var(--e-5);
+  }
+
+  .migas a {
+    text-underline-offset: 0.2em;
+  }
+
+  .listado__etiqueta {
+    margin-bottom: var(--e-2);
+  }
+
+  h1 {
+    font-size: var(--t-display);
+    line-height: 0.94;
+    font-weight: 360;
+    letter-spacing: -0.03em;
+  }
+
+  sup {
+    margin-left: var(--e-2);
+    font-family: var(--f-texto);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    vertical-align: super;
+  }
+
+  .listado__promesa {
+    margin-top: var(--e-3);
+    max-width: 32rem;
+    font-family: var(--f-titulo);
+    font-style: italic;
+    font-size: var(--t-h3);
+    line-height: 1.2;
+  }
+
+  .listado :global(.listado__doodle) {
+    position: absolute;
+    right: var(--margen);
+    top: 0;
+    color: var(--rojo);
+  }
+</style>

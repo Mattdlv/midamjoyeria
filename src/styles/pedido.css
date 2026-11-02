@@ -1,0 +1,469 @@
+/* Checkout */
+.pedido {
+  display: grid;
+  gap: var(--e-6);
+}
+
+@media (min-width: 1024px) {
+  .pedido {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: var(--e-7);
+    align-items: start;
+  }
+
+  .pedido__resumen {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--alto-header) + var(--e-4));
+  }
+
+  .pedido__formulario {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+.pedido__cargando {
+  padding-block: var(--e-6);
+  color: var(--tinta-suave);
+}
+
+.pedido__resumen {
+  padding: var(--e-4);
+  border-radius: var(--radio);
+  background: var(--agua-suave);
+}
+
+.pedido__resumen h2 {
+  font-size: var(--t-h3);
+  margin-bottom: var(--e-3);
+}
+
+.pedido__resumen li {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) auto;
+  gap: var(--e-3);
+  padding-block: var(--e-2);
+}
+
+.pedido__resumen img {
+  width: 4rem;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.pedido__pieza {
+  font-family: var(--f-titulo);
+  font-size: 1.125rem;
+  line-height: 1.15;
+}
+
+.pedido__detalle {
+  color: var(--tinta-suave);
+  font-size: var(--t-detalle);
+  line-height: 1.3;
+}
+
+.pedido__resumen dl {
+  margin: var(--e-3) 0 0;
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--linea);
+}
+
+.pedido__resumen dl div {
+  display: flex;
+  justify-content: space-between;
+  padding-block: var(--e-1);
+}
+
+.pedido__resumen dd {
+  margin: 0;
+}
+
+.pedido__editar {
+  min-height: 2.75rem;
+  margin-top: var(--e-1);
+  text-decoration: underline;
+}
+
+.pedido__formulario {
+  display: grid;
+  gap: var(--e-6);
+}
+
+.pedido__grupo {
+  display: grid;
+  gap: var(--e-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pedido__grupo legend {
+  padding: 0;
+  margin-bottom: var(--e-3);
+  font-family: var(--f-titulo);
+  font-size: var(--t-h3);
+}
+
+.pedido__direccion {
+  display: grid;
+  gap: var(--e-3);
+  margin-top: var(--e-1);
+}
+
+.campo {
+  display: grid;
+  gap: var(--e-1);
+}
+
+.campo label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+/* 16 px en los campos: evita el zoom automático de iOS. */
+.campo input,
+.campo textarea {
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--e-2) var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  font: inherit;
+  font-size: 1rem;
+  transition: border-color var(--rapido);
+}
+
+.campo input:hover,
+.campo textarea:hover {
+  border-color: var(--tinta);
+}
+
+.campo input[aria-invalid='true'] {
+  border: 2px solid var(--rojo);
+}
+
+.campo__ayuda {
+  color: var(--tinta-suave);
+  font-size: var(--t-detalle);
+  line-height: 1.35;
+}
+
+.campo__error {
+  color: var(--rojo);
+  font-size: var(--t-detalle);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.opciones {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  min-height: 3.25rem;
+  padding: var(--e-2) var(--e-3);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  cursor: pointer;
+  transition: border-color var(--rapido), background-color var(--rapido);
+}
+
+.opcion:hover {
+  border-color: var(--tinta);
+}
+
+.opcion:has(input:checked) {
+  border: 2px solid var(--tinta);
+  background: var(--agua-suave);
+}
+
+.opcion:has(input:focus-visible) {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.opcion input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--tinta);
+}
+
+.opcion span {
+  display: grid;
+  line-height: 1.3;
+}
+
+.opcion strong {
+  font-weight: 600;
+}
+
+.opcion small {
+  color: var(--tinta-suave);
+  font-size: var(--t-detalle);
+}
+
+.marca-regalo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.marca-regalo input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--tinta);
+}
+
+.pedido__aviso {
+  display: grid;
+  gap: var(--e-2);
+  justify-items: start;
+  padding: var(--e-4);
+  border: 2px solid var(--rojo);
+  border-radius: var(--radio);
+  background: var(--blanco);
+}
+
+.pedido__error {
+  padding: var(--e-3);
+  border: 2px solid var(--rojo);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  font-weight: 500;
+}
+
+.pedido__cierre {
+  display: grid;
+  gap: var(--e-2);
+}
+
+/* Confirmación */
+.confirmacion {
+  display: grid;
+  gap: var(--e-4);
+  justify-items: start;
+  max-width: 38rem;
+}
+
+.confirmacion__numero {
+  color: var(--oro-texto);
+}
+
+.confirmacion h1 {
+  font-size: var(--t-h1);
+  font-weight: 380;
+}
+
+.boton--whatsapp {
+  min-height: 3.5rem;
+  font-size: 1.0625rem;
+}
+
+.confirmacion__alternativas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  width: 100%;
+}
+
+.confirmacion__alternativas .boton {
+  flex: 1 1 12rem;
+}
+
+.confirmacion details {
+  width: 100%;
+  border-top: 1px solid var(--linea-suave);
+  border-bottom: 1px solid var(--linea-suave);
+}
+
+.confirmacion summary {
+  min-height: 3rem;
+  padding-block: var(--e-3);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.confirmacion pre {
+  margin: 0 0 var(--e-4);
+  font-family: var(--f-texto);
+  font-size: var(--t-detalle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Comprobante */
+.comprobante {
+  display: grid;
+  gap: var(--e-5);
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+.comprobante__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--e-3);
+}
+
+.comprobante h1 {
+  font-size: var(--t-h1);
+  font-weight: 380;
+}
+
+.comprobante__fecha {
+  margin-top: var(--e-1);
+  color: var(--tinta-suave);
+  font-size: var(--t-detalle);
+}
+
+.estado {
+  display: inline-block;
+  padding: 0.125rem var(--e-3);
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  font-size: var(--t-detalle);
+  font-weight: 600;
+}
+
+.estado--alerta {
+  color: var(--rojo);
+}
+
+.estado--ok {
+  color: var(--exito);
+}
+
+.comprobante__tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comprobante__tabla th {
+  text-align: left;
+  font-size: var(--t-etiqueta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-block: var(--e-2);
+  border-bottom: 1.5px solid var(--tinta);
+}
+
+.comprobante__tabla td {
+  padding-block: var(--e-3);
+  border-bottom: 1px solid var(--linea-suave);
+  vertical-align: top;
+}
+
+.comprobante__tabla .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  padding-left: var(--e-3);
+}
+
+.comprobante__totales {
+  display: grid;
+  gap: var(--e-1);
+  justify-self: end;
+  width: min(100%, 20rem);
+  margin: 0;
+}
+
+.comprobante__totales div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-4);
+}
+
+.comprobante__totales dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.comprobante__total {
+  padding-top: var(--e-2);
+  border-top: 1.5px solid var(--tinta);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.comprobante__datos {
+  display: grid;
+  gap: var(--e-4);
+}
+
+@media (min-width: 640px) {
+  .comprobante__datos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.comprobante__datos h2 {
+  margin-bottom: var(--e-1);
+  font-family: var(--f-texto);
+  font-size: var(--t-etiqueta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oro-texto);
+}
+
+.comprobante__leyenda {
+  padding: var(--e-3);
+  border: 1.5px dashed var(--linea);
+  border-radius: var(--radio);
+  font-size: var(--t-detalle);
+}
+
+.comprobante__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+@media print {
+  .franja,
+  .cabecera,
+  .pie,
+  .flotante,
+  .saltar,
+  .velo,
+  .bolsa,
+  .buscador,
+  .aviso,
+  .menu,
+  .comprobante__acciones {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000;
+  }
+
+  .comprobante {
+    max-width: none;
+  }
+
+  .comprobante__leyenda {
+    border-color: #000;
+  }
+}

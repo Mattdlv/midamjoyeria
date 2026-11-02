@@ -1,0 +1,97 @@
+---
+import { getSecret } from 'astro:env/server';
+import '@fontsource-variable/fraunces/full.css';
+import '@fontsource-variable/dm-sans/index.css';
+import '../../styles/global.css';
+import '../../styles/pedido.css';
+import '../../styles/admin.css';
+import { env, ipCliente } from '../../lib/entorno';
+import { hashIp } from '../../lib/pedidos';
+import { COOKIE_SESION, DURACION_SESION, firmarSesion, verificarCredenciales } from '../../lib/acceso';
+
+export const prerender = false;
+
+if (Astro.locals.usuario) return Astro.redirect('/admin', 303);
+
+const VENTANA = 15 * 60_000;
+const MAX_POR_PERSONA = 5;
+const MAX_POR_IP = 20;
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const secreto = getSecret('SESION_SECRETO');
+  const usuarios = getSecret('ADMIN_USUARIOS');
+  const f = await Astro.request.formData();
+  const email = String(f.get('email') ?? '').trim().toLowerCase().slice(0, 120);
+  const clave = String(f.get('clave') ?? '').slice(0, 200);
+  const ahora = Date.now();
+  const ip = await hashIp(ipCliente(Astro.request) ?? 'local');
+  const persona = await hashIp(`${email}|${ip}`);
+  const db = env.DB;
+  const { n } = (await db
+    .prepare('SELECT COUNT(*) AS n FROM intento_login WHERE clave = ? AND fecha > ?')
+    .bind(persona, ahora - VENTANA)
+    .first<{ n: number }>())!;
+  const { m } = (await db
+    .prepare('SELECT COUNT(*) AS m FROM intento_login WHERE clave = ? AND fecha > ?')
+    .bind(ip, ahora - VENTANA)
+    .first<{ m: number }>())!;
+
+  if (!secreto || secreto.length < 32 || !usuarios) {
+    error = 'El ingreso todavía no está configurado.';
+    Astro.response.status = 503;
+  } else if (n >= MAX_POR_PERSONA || m >= MAX_POR_IP) {
+    error = 'Demasiados intentos. Probá de nuevo en 15 minutos.';
+    Astro.response.status = 429;
+  } else {
+    const usuario = await verificarCredenciales(usuarios, email, clave);
+    if (usuario) {
+      await db.prepare('DELETE FROM intento_login WHERE clave = ?').bind(persona).run();
+      Astro.cookies.set(COOKIE_SESION, await firmarSesion(usuario, usuarios, secreto), {
+        httpOnly: true,
+        secure: Astro.url.protocol === 'https:',
+        sameSite: 'lax',
+        path: '/admin',
+        maxAge: DURACION_SESION,
+      });
+      return Astro.redirect('/admin', 303);
+    }
+    await db.batch([
+      db.prepare('DELETE FROM intento_login WHERE fecha <= ?').bind(ahora - VENTANA),
+      db.prepare('INSERT INTO intento_login (clave, fecha) VALUES (?, ?)').bind(persona, ahora),
+      db.prepare('INSERT INTO intento_login (clave, fecha) VALUES (?, ?)').bind(ip, ahora),
+    ]);
+    error = 'El mail o la contraseña no son correctos.';
+    Astro.response.status = 401;
+  }
+}
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Ingresar | Panel Midam</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body class="panel ingreso">
+    <main>
+      <img src="/img/sello.webp" alt="" width="72" height="72" />
+      <h1>Panel Midam</h1>
+      {error && <p class="panel__aviso panel__aviso--error" role="alert">{error}</p>}
+      <form class="form-panel" method="post">
+        <div class="campo">
+          <label for="email">Mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" required />
+        </div>
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <input id="clave" name="clave" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="boton boton--ancho" type="submit">Ingresar</button>
+      </form>
+    </main>
+  </body>
+</html>

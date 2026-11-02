@@ -1,0 +1,97 @@
+---
+import { env } from '../../../lib/entorno';
+import '../../../styles/pedido.css';
+import Base from '../../../layouts/Base.astro';
+import { CONTACTO } from '../../../lib/catalogo';
+import { armarMensaje, enlaceMensaje, fechaLocal } from '../../../lib/mensaje';
+import { leerPedido, numeroPedido } from '../../../lib/pedidos';
+
+export const prerender = false;
+
+const token = Astro.params.token ?? '';
+const datos = await leerPedido(env.DB, token);
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+if (!datos) Astro.response.status = 404;
+
+const numero = datos ? numeroPedido(datos.pedido.id) : '';
+const mensaje = datos && {
+  numero,
+  nombre: datos.pedido.nombre_entrega,
+  items: datos.items.map((i) => ({ nombre: i.nombre_al_comprar, descripcion: i.descripcion_al_comprar, opcion: i.opcion, precio: i.precio_al_comprar, cantidad: i.cantidad })),
+  subtotal: datos.pedido.subtotal,
+  tipoEntrega: datos.pedido.tipo_entrega,
+  cp: datos.pedido.cp,
+  metodoPago: datos.pedido.metodo_pago,
+  enlaceComprobante: `${Astro.url.origin}/pedido/${token}`,
+};
+const vigente = datos?.pedido.estado === 'creado';
+const vence = datos ? fechaLocal(datos.pedido.reserva_vence_en) : '';
+const local = CONTACTO.whatsapp.slice(3);
+const telefono = `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+---
+
+<Base titulo={datos ? `Pedido ${numero}` : 'Pedido no encontrado'} sinFlotante>
+  <section class="contenedor pagina">
+    {!datos && (
+      <div class="confirmacion">
+        <h1>No encontramos ese pedido.</h1>
+        <p>Revisá el enlace o escribinos por WhatsApp.</p>
+        <a class="boton" href="/tienda">Ver el elenco</a>
+      </div>
+    )}
+    {datos && vigente && (
+      <div class="confirmacion">
+        <p class="etiqueta confirmacion__numero">Pedido {numero}</p>
+        <h1>Tu pedido está guardado. <em>Falta un paso:</em> mandarnos el mensaje.</h1>
+        <p>Tus piezas quedan reservadas hasta el {vence} h. Sin el mensaje no nos enteramos de que lo querés.</p>
+        <a class="boton boton--ancho boton--whatsapp" id="enviar" data-token={token} href={enlaceMensaje(mensaje!)} target="_blank" rel="noopener">Enviar mi pedido por WhatsApp</a>
+        <div class="confirmacion__alternativas">
+          <button class="boton boton--borde" type="button" id="copiar" data-texto={armarMensaje(mensaje!)}>Copiar el mensaje</button>
+          <a class="boton boton--borde" href={`/pedido/${token}`}>Ver comprobante</a>
+        </div>
+        <p role="status" id="copiado"></p>
+        <p>¿No se abre WhatsApp? Copiá el mensaje y mandalo al <strong>{telefono}</strong>.</p>
+        <details>
+          <summary>Ver el mensaje</summary>
+          <pre>{armarMensaje(mensaje!)}</pre>
+        </details>
+      </div>
+    )}
+    {datos && !vigente && (
+      <div class="confirmacion">
+        <p class="etiqueta confirmacion__numero">Pedido {numero}</p>
+        <h1>{datos.pedido.estado === 'vencido' ? 'La reserva de este pedido venció.' : 'Este pedido ya está en marcha.'}</h1>
+        <a class="boton" href={`/pedido/${token}`}>Ver comprobante</a>
+      </div>
+    )}
+  </section>
+</Base>
+
+<script>
+  const enviar = document.getElementById('enviar');
+  enviar?.addEventListener('click', () => {
+    navigator.sendBeacon(`/api/pedidos/${enviar.dataset.token}/clic`);
+  });
+  const copiar = document.getElementById('copiar');
+  const aviso = document.getElementById('copiado');
+  copiar?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(copiar.dataset.texto ?? '');
+      if (aviso) aviso.textContent = 'Mensaje copiado.';
+    } catch {
+      if (aviso) aviso.textContent = 'No pudimos copiarlo. Abrí "Ver el mensaje" y copialo a mano.';
+    }
+  });
+</script>
+
+<style>
+  .pagina {
+    padding-block: var(--e-6) var(--e-8);
+  }
+
+  #copiado:empty {
+    display: none;
+  }
+</style>

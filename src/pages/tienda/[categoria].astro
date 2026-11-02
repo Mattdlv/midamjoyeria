@@ -1,0 +1,32 @@
+---
+import Base from '../../layouts/Base.astro';
+import ListingHead from '../../components/ListingHead.astro';
+import CatalogBrowser from '../../components/CatalogBrowser';
+import { CATEGORIAS, porCategoria } from '../../lib/catalogo';
+
+export function getStaticPaths() {
+  return CATEGORIAS.map((c) => ({ params: { categoria: c.id }, props: { categoria: c } }));
+}
+
+const { categoria: c } = Astro.props;
+const lista = porCategoria(c.id);
+const notas: Record<string, string> = {
+  anillos: 'Paso a recordarte.',
+  aros: 'Cuando tu opinión sean unos aros, me la das.',
+  collares: 'Esta es tu señal.',
+  pulseras: 'WTF es salir sin accesorios',
+};
+---
+
+<Base titulo={c.nombre} descripcion={`${c.nombre} de Midam Joyería. ${lista.length} piezas, cada una con nombre propio.`}>
+  <ListingHead etiqueta="En cartelera" titulo={c.nombre} promesa={c.promesa} cantidad={lista.length} migas={[{ href: '/tienda', texto: 'Tienda' }]} />
+  <section class="contenedor seccion-catalogo">
+    <CatalogBrowser client:load productos={lista} nota={notas[c.id]} />
+  </section>
+</Base>
+
+<style>
+  .seccion-catalogo {
+    padding-block: var(--e-5) var(--e-8);
+  }
+</style>

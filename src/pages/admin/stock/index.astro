@@ -1,0 +1,63 @@
+---
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+import { listarStock, ventaOtroCanal } from '../../../lib/panel';
+
+export const prerender = false;
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+
+const parametros = Astro.url.searchParams;
+const q = (parametros.get('q') ?? '').slice(0, 80);
+const agotados = parametros.get('agotados') === '1';
+const consulta = [q && `q=${encodeURIComponent(q)}`, agotados && 'agotados=1'].filter(Boolean).join('&');
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const r = await ventaOtroCanal(env.DB, String(f.get('producto')), 1, null, usuario);
+  const aviso = r.ok ? 'guardado' : r.error;
+  return Astro.redirect(`/admin/stock?${consulta ? `${consulta}&` : ''}aviso=${aviso}`, 303);
+}
+
+const lista = await listarStock(env.DB, q, agotados);
+---
+
+<Admin titulo="Stock" seccion="stock">
+  <div class="panel-titulo">
+    <h1>Stock</h1>
+    <a class="boton boton--borde boton--chico" href="/admin/exportar/stock.csv">Exportar</a>
+  </div>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-3)">Cargá el mismo día lo que vendas por Instagram o en persona, para que la tienda no venda lo que ya no tenés.</p>
+
+  <form class="panel-buscar" method="get" role="search">
+    <input type="search" name="q" value={q} placeholder="Nombre, descripción o código" aria-label="Buscar piezas" />
+    <button class="boton boton--chico" type="submit">Buscar</button>
+  </form>
+  <nav class="bandejas" aria-label="Filtro">
+    <a class="pildora" href="/admin/stock" aria-current={!agotados ? 'page' : undefined}>Todas</a>
+    <a class="pildora" href="/admin/stock?agotados=1" aria-current={agotados ? 'page' : undefined}>Agotadas</a>
+  </nav>
+
+  {lista.length === 0 ? (
+    <p class="vacio-panel">No hay piezas acá.</p>
+  ) : (
+    <ul class="lista-pedidos">
+      {lista.map((p) => (
+        <li class="fila-stock">
+          <a href={`/admin/stock/${p.id}`}>
+            <span class="fila-stock__nombre">{p.nombre}</span>
+            <span class="tarjeta-pedido__detalle" style="display: block">{p.descripcion}</span>
+            <span class="fila-stock__numeros">
+              <strong class:list={{ agotado: p.stock_disponible === 0 }}>{p.stock_disponible}</strong> {p.stock_disponible === 1 ? 'disponible' : 'disponibles'}
+              {p.stock_reservado > 0 && ` · ${p.stock_reservado} ${p.stock_reservado === 1 ? 'reservada' : 'reservadas'}`}
+            </span>
+          </a>
+          <form method="post">
+            <input type="hidden" name="producto" value={p.id} />
+            <button class="boton boton--borde boton--chico" type="submit" disabled={p.stock_disponible === 0} aria-label={`Vendí 1 de ${p.nombre} por otro canal`}>Vendí 1</button>
+          </form>
+        </li>
+      ))}
+    </ul>
+  )}
+</Admin>

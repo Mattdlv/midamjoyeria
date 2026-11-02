@@ -1,0 +1,74 @@
+---
+// Entrada de teatro: el acceso a cada rango de precio de "Para regalar".
+interface Props {
+  href: string;
+  titulo: string;
+  nota: string;
+  cantidad: number;
+  numero: number;
+}
+const { href, titulo, nota, cantidad, numero } = Astro.props;
+---
+
+<a class="entrada" href={href}>
+  <span class="entrada__cuerpo">
+    <span class="etiqueta">Entrada {numero}</span>
+    <span class="entrada__titulo">{titulo}</span>
+    <span class="mano">{nota}</span>
+  </span>
+  <span class="entrada__talon">
+    <span class="entrada__cantidad">{cantidad}</span>
+    <span class="entrada__piezas">piezas</span>
+  </span>
+</a>
+
+<style>
+  .entrada {
+    --muesca: 0.75rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    background: var(--agua);
+    text-decoration: none;
+    border-radius: var(--radio);
+    -webkit-mask: radial-gradient(circle var(--muesca) at calc(100% - 5.25rem) 0, transparent 98%, #000) top / 100% 51% no-repeat,
+      radial-gradient(circle var(--muesca) at calc(100% - 5.25rem) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+    mask: radial-gradient(circle var(--muesca) at calc(100% - 5.25rem) 0, transparent 98%, #000) top / 100% 51% no-repeat,
+      radial-gradient(circle var(--muesca) at calc(100% - 5.25rem) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+    transition: transform var(--medio) var(--curva);
+  }
+
+  .entrada:hover {
+    transform: translateY(-3px) rotate(-0.6deg);
+  }
+
+  .entrada__cuerpo {
+    display: grid;
+    gap: var(--e-1);
+    padding: var(--e-4);
+    min-width: 0;
+  }
+
+  .entrada__titulo {
+    font-family: var(--f-titulo);
+    font-size: var(--t-h2);
+    line-height: 1.05;
+  }
+
+  .entrada__talon {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    width: 5.25rem;
+    border-left: 2px dashed var(--tinta);
+  }
+
+  .entrada__cantidad {
+    font-family: var(--f-titulo);
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .entrada__piezas {
+    font-size: var(--t-detalle);
+  }
+</style>

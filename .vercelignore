@@ -1,0 +1,6 @@
+fuente
+tests
+dist
+.env
+.env.*
+*.tgz

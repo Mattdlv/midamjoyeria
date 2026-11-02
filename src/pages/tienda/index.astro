@@ -1,0 +1,19 @@
+---
+import Base from '../../layouts/Base.astro';
+import ListingHead from '../../components/ListingHead.astro';
+import CatalogBrowser from '../../components/CatalogBrowser';
+import { productos } from '../../lib/catalogo';
+---
+
+<Base titulo="Tienda" descripcion="Todo el elenco de Midam: anillos, aros, collares y pulseras.">
+  <ListingHead etiqueta="Todo el programa" titulo="El elenco" promesa="Villanas, reinas y otras personalidades fuertes." cantidad={productos.length} doodle="estrella" />
+  <section class="contenedor seccion-catalogo">
+    <CatalogBrowser client:load productos={productos} nota="WTF es salir sin accesorios" />
+  </section>
+</Base>
+
+<style>
+  .seccion-catalogo {
+    padding-block: var(--e-5) var(--e-8);
+  }
+</style>

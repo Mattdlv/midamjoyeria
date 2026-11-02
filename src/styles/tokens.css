@@ -1,0 +1,65 @@
+:root {
+  color-scheme: light;
+
+  /* Color. Agua y mar medidos en el logo y en las fotos del catálogo. */
+  --papel: #faf6ee;
+  --blanco: #ffffff;
+  --agua: #abe0e5;
+  --agua-suave: #ddf1f3;
+  --tinta: #1e3a5f;
+  --tinta-honda: #142a47;
+  --tinta-suave: #4f6074;
+  --linea: #7a8a9b;
+  --linea-suave: #d9d6cc;
+  --oro: #c8a15a;
+  --oro-texto: #7d5f26;
+  --rojo: #c23b3b;
+  --exito: #2e6b4f;
+  --mar: #177fe3;
+  --tornasol: linear-gradient(115deg, #b1cbd7 0%, #e6d9e8 48%, #c9e4dc 100%);
+
+  /* Tipografía */
+  --f-titulo: 'Fraunces Variable', Georgia, serif;
+  --f-texto: 'DM Sans Variable', system-ui, sans-serif;
+  --f-mano: 'Caveat', 'Segoe Print', cursive;
+  --t-display: clamp(2.75rem, 1.2rem + 9.2vw, 7rem);
+  --t-h1: clamp(2.125rem, 1.5rem + 3.4vw, 4rem);
+  --t-h2: clamp(1.75rem, 1.4rem + 1.9vw, 2.75rem);
+  --t-h3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --t-cuerpo: 1rem;
+  --t-detalle: 0.875rem;
+  --t-etiqueta: 0.8125rem;
+
+  /* Espacio */
+  --e-1: 0.25rem;
+  --e-2: 0.5rem;
+  --e-3: 0.75rem;
+  --e-4: 1rem;
+  --e-5: 1.5rem;
+  --e-6: 2rem;
+  --e-7: 3rem;
+  --e-8: 4rem;
+  --e-9: 6rem;
+  --margen: 1rem;
+  --ancho: 82.5rem;
+
+  /* Forma y movimiento */
+  --radio: 8px;
+  --rapido: 200ms;
+  --medio: 300ms;
+  --curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --alto-header: 3.75rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --margen: 1.5rem;
+    --alto-header: 4.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --margen: 2rem;
+  }
+}

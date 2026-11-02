@@ -1,0 +1,151 @@
+---
+import { env } from '../../../lib/entorno';
+import '../../../styles/pedido.css';
+import Base from '../../../layouts/Base.astro';
+import { enlaceWhatsApp, formatoPrecio } from '../../../lib/catalogo';
+import { METODOS_PAGO, fechaLocal } from '../../../lib/mensaje';
+import { leerPedido, numeroPedido } from '../../../lib/pedidos';
+import { leerConfig } from '../../../lib/panel';
+
+export const prerender = false;
+
+const token = Astro.params.token ?? '';
+const datos = await leerPedido(env.DB, token);
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+if (!datos) Astro.response.status = 404;
+
+const ESTADOS: Record<string, { texto: string; clase?: string }> = {
+  creado: { texto: 'Esperando confirmación' },
+  confirmado: { texto: 'Confirmado', clase: 'estado--ok' },
+  pagado: { texto: 'Pagado', clase: 'estado--ok' },
+  preparado: { texto: 'En preparación', clase: 'estado--ok' },
+  despachado: { texto: 'Despachado', clase: 'estado--ok' },
+  listo_retiro: { texto: 'Listo para retirar', clase: 'estado--ok' },
+  entregado: { texto: 'Entregado', clase: 'estado--ok' },
+  vencido: { texto: 'Reserva vencida', clase: 'estado--alerta' },
+  cancelado: { texto: 'Cancelado', clase: 'estado--alerta' },
+  devuelto: { texto: 'Devuelto', clase: 'estado--alerta' },
+};
+
+const p = datos?.pedido;
+const config = datos ? await leerConfig(env.DB) : {};
+// Los datos para pagar se muestran recién cuando Midam confirmó el pedido.
+const abierto = p && ['confirmado', 'preparado', 'despachado', 'listo_retiro'].includes(p.estado) && p.estado_pago !== 'pagado';
+const datosPago = abierto && p.metodo_pago === 'transferencia' ? config.datos_transferencia : null;
+const linkPago = abierto && p.metodo_pago === 'mercado_pago' ? p.link_pago : null;
+const seguimiento = p ? [p.seguimiento_empresa, p.seguimiento_codigo].filter(Boolean).join(': ') : '';
+const numero = p ? numeroPedido(p.id) : '';
+const estado = p ? (ESTADOS[p.estado] ?? { texto: p.estado }) : null;
+// Pasado este plazo el comprobante deja de mostrar dirección y teléfono.
+const datosVisibles = p ? Date.now() - p.creado < 60 * 86_400_000 : false;
+const total = p ? p.subtotal - p.descuento + (p.costo_envio ?? 0) : 0;
+const envioConfirmado = p?.tipo_entrega === 'retiro' || p?.costo_envio != null;
+---
+
+<Base titulo={p ? `Comprobante ${numero}` : 'Comprobante no encontrado'} sinFlotante>
+  <section class="contenedor pagina">
+    {!datos && (
+      <div class="comprobante">
+        <h1>No encontramos ese comprobante.</h1>
+        <p>Revisá el enlace o escribinos por WhatsApp.</p>
+      </div>
+    )}
+    {datos && p && estado && (
+      <article class="comprobante">
+        <header class="comprobante__cabeza">
+          <div>
+            <p class="etiqueta">Midam Joyería</p>
+            <h1>Comprobante de pedido {numero}</h1>
+            <p class="comprobante__fecha">{fechaLocal(p.creado)} h</p>
+          </div>
+          <span class:list={['estado', estado.clase]}>{estado.texto}</span>
+        </header>
+
+        {p.estado === 'creado' && <p>Tus piezas quedan reservadas hasta el {fechaLocal(p.reserva_vence_en)} h.</p>}
+
+        <table class="comprobante__tabla">
+          <thead>
+            <tr><th scope="col">Pieza</th><th scope="col" class="num">Cant.</th><th scope="col" class="num">Importe</th></tr>
+          </thead>
+          <tbody>
+            {datos.items.map((i) => (
+              <tr>
+                <td>
+                  <strong>{i.nombre_al_comprar}</strong><br />
+                  {i.descripcion_al_comprar}{i.opcion && ` · ${i.opcion}`}
+                </td>
+                <td class="num">{i.cantidad}</td>
+                <td class="num">{formatoPrecio(i.precio_al_comprar * i.cantidad)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <dl class="comprobante__totales">
+          <div><dt>Subtotal</dt><dd>{formatoPrecio(p.subtotal)}</dd></div>
+          {p.descuento > 0 && <div><dt>Descuento</dt><dd>−{formatoPrecio(p.descuento)}</dd></div>}
+          <div>
+            <dt>Envío</dt>
+            <dd>{p.tipo_entrega === 'retiro' ? 'Retiro' : p.costo_envio != null ? formatoPrecio(p.costo_envio) : 'A confirmar'}</dd>
+          </div>
+          <div class="comprobante__total"><dt>{envioConfirmado ? 'Total' : 'Total sin envío'}</dt><dd>{formatoPrecio(total)}</dd></div>
+        </dl>
+
+        <div class="comprobante__datos">
+          <section>
+            <h2>A nombre de</h2>
+            <p>{p.nombre_entrega}</p>
+            {datosVisibles && <p>WhatsApp: {p.whatsapp.replace(/^549/, '')}</p>}
+          </section>
+          <section>
+            <h2>Entrega</h2>
+            {p.tipo_entrega === 'retiro' && <p>Retiro. {p.estado === 'listo_retiro' && config.punto_retiro ? config.punto_retiro : 'Coordinamos el lugar por WhatsApp.'}</p>}
+            {seguimiento && <p>Seguimiento: {seguimiento}</p>}
+            {p.tipo_entrega === 'envio' && datosVisibles && <p>{p.direccion}<br />{p.localidad} ({p.cp})</p>}
+            {p.tipo_entrega === 'envio' && !datosVisibles && <p>Envío a domicilio</p>}
+          </section>
+          <section>
+            <h2>Pago</h2>
+            <p>{METODOS_PAGO[p.metodo_pago]}</p>
+            {p.estado === 'creado' && <p>Te pasamos los datos por WhatsApp.</p>}
+            {datosPago && <p style="white-space: pre-line">{datosPago}</p>}
+            {linkPago && <p><a class="enlace" href={linkPago} target="_blank" rel="noopener">Pagar con Mercado Pago</a></p>}
+            {p.estado_pago === 'pagado' && <p>Pago recibido.</p>}
+            {p.estado_pago === 'parcial' && <p>Pago parcial recibido.</p>}
+          </section>
+          {(p.nota || p.es_regalo === 1) && (
+            <section>
+              <h2>Nota</h2>
+              {p.es_regalo === 1 && <p>Es para regalar.</p>}
+              {p.nota && <p>{p.nota}</p>}
+            </section>
+          )}
+        </div>
+
+        <p class="comprobante__leyenda">Este documento no es una factura. Resume tu pedido y lo que acordamos por WhatsApp.</p>
+
+        <div class="comprobante__acciones">
+          <button class="boton" type="button" id="imprimir">Imprimir o guardar PDF</button>
+          <a class="boton boton--borde" href={enlaceWhatsApp(`¡Hola Midam! Te escribo por mi pedido ${numero}.`)} target="_blank" rel="noopener">Consultar por WhatsApp</a>
+        </div>
+      </article>
+    )}
+  </section>
+</Base>
+
+<script>
+  document.getElementById('imprimir')?.addEventListener('click', () => window.print());
+</script>
+
+<style>
+  .pagina {
+    padding-block: var(--e-6) var(--e-8);
+  }
+
+  .etiqueta {
+    color: var(--oro-texto);
+    margin-bottom: var(--e-2);
+  }
+</style>

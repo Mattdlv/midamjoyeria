@@ -1,0 +1,124 @@
+---
+import { CATEGORIAS, CONTACTO, enlaceWhatsApp } from '../lib/catalogo';
+---
+
+<footer class="pie sobre-oscuro">
+  <div class="contenedor">
+    <p class="pie__frase">La belleza de lo <em>esencial.</em></p>
+    <div class="pie__columnas">
+      <nav aria-label="Tienda">
+        <h2 class="etiqueta">Tienda</h2>
+        <ul>
+          {CATEGORIAS.map((c) => <li><a href={`/tienda/${c.id}`}>{c.nombre}</a></li>)}
+          <li><a href="/giratorias">Las que giran</a></li>
+          <li><a href="/para-regalar">Para regalar</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Ayuda">
+        <h2 class="etiqueta">Ayuda</h2>
+        <ul>
+          <li><a href="/guia-de-talles">Guía de talles</a></li>
+          <li><a href="/ayuda#envios">Envíos y cambios</a></li>
+          <li><a href="/ayuda#preguntas">Preguntas frecuentes</a></li>
+          <li><a href="/nosotros">Nosotros</a></li>
+        </ul>
+      </nav>
+      <div>
+        <h2 class="etiqueta">Hablemos</h2>
+        <ul>
+          <li><a href={enlaceWhatsApp('¡Hola Midam! Tengo una consulta.')} target="_blank" rel="noopener">WhatsApp</a></li>
+          <li><a href={CONTACTO.instagram} target="_blank" rel="noopener">Instagram {CONTACTO.usuario}</a></li>
+          <li>{CONTACTO.ciudad}</li>
+          <li>{CONTACTO.horario}</li>
+        </ul>
+      </div>
+      <nav aria-label="Legales">
+        <h2 class="etiqueta">Legales</h2>
+        <ul>
+          <li><a href="/ayuda#legales">Botón de arrepentimiento</a></li>
+          <li><a href="/ayuda#legales">Términos y privacidad</a></li>
+          <li><a href="/ayuda#legales">Defensa del consumidor</a></li>
+        </ul>
+      </nav>
+    </div>
+    <p class="pie__marca" aria-hidden="true">MIDAM</p>
+  </div>
+</footer>
+
+<style>
+  .pie {
+    background: var(--tinta-honda);
+    color: var(--papel);
+    padding-top: var(--e-8);
+    overflow: hidden;
+    /* Deja lugar para el botón flotante sin tapar los últimos enlaces. */
+    padding-bottom: var(--e-5);
+  }
+
+  .pie__frase {
+    font-family: var(--f-titulo);
+    font-size: var(--t-h1);
+    line-height: 1.05;
+    font-weight: 380;
+  }
+
+  .pie__frase em {
+    color: var(--agua);
+  }
+
+  .pie__columnas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--e-6) var(--e-4);
+    margin-top: var(--e-7);
+  }
+
+  @media (min-width: 768px) {
+    .pie__columnas {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .pie h2 {
+    font-family: var(--f-texto);
+    font-size: var(--t-etiqueta);
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    color: var(--agua);
+    margin-bottom: var(--e-3);
+  }
+
+  .pie li {
+    font-size: 0.9375rem;
+    padding-block: 0.3125rem;
+    line-height: 1.35;
+  }
+
+  .pie a {
+    text-decoration: none;
+  }
+
+  .pie a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .pie__marca {
+    margin-top: var(--e-7);
+    font-family: var(--f-titulo);
+    font-size: 25vw;
+    line-height: 0.8;
+    letter-spacing: 0.04em;
+    font-weight: 300;
+    color: var(--tinta);
+    text-align: center;
+    white-space: nowrap;
+    transform: translateY(0.12em);
+  }
+
+  @media (min-width: 1320px) {
+    .pie__marca {
+      font-size: 20rem;
+    }
+  }
+</style>

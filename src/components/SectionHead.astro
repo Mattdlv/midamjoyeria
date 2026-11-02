@@ -1,0 +1,56 @@
+---
+interface Props {
+  acto?: string;
+  titulo: string;
+  bajada?: string;
+  enlace?: { href: string; texto: string };
+}
+const { acto, titulo, bajada, enlace } = Astro.props;
+---
+
+<header class="cabeza">
+  <div>
+    {acto && <p class="etiqueta cabeza__acto">{acto}</p>}
+    <h2 set:html={titulo} />
+    {bajada && <p class="cabeza__bajada">{bajada}</p>}
+  </div>
+  {enlace && <a class="enlace cabeza__enlace" href={enlace.href}>{enlace.texto} →</a>}
+</header>
+
+<style>
+  .cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--e-3) var(--e-6);
+    margin-bottom: var(--e-5);
+  }
+
+  .cabeza__acto {
+    color: var(--oro-texto);
+    margin-bottom: var(--e-2);
+  }
+
+  h2 {
+    font-size: var(--t-h1);
+  }
+
+  .cabeza__bajada {
+    max-width: 34rem;
+    margin-top: var(--e-3);
+    color: var(--tinta-suave);
+  }
+
+  :global(.sobre-oscuro) .cabeza__acto {
+    color: var(--agua);
+  }
+
+  :global(.sobre-oscuro) .cabeza__bajada {
+    color: inherit;
+  }
+
+  .cabeza__enlace {
+    white-space: nowrap;
+  }
+</style>

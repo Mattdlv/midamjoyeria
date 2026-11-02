@@ -1,0 +1,36 @@
+---
+// Marca a la vista lo que todavía tiene que aportar el cliente. No se inventa contenido.
+interface Props {
+  titulo: string;
+  id?: string;
+}
+const { titulo, id } = Astro.props;
+---
+
+<section class="pendiente" id={id}>
+  <p class="etiqueta">Falta confirmar con Midam</p>
+  <h2>{titulo}</h2>
+  <div class="pendiente__texto"><slot /></div>
+</section>
+
+<style>
+  .pendiente {
+    padding: var(--e-5);
+    border: 1.5px dashed var(--linea);
+    border-radius: var(--radio);
+  }
+
+  .etiqueta {
+    color: var(--oro-texto);
+  }
+
+  h2 {
+    margin-top: var(--e-2);
+    font-size: var(--t-h3);
+  }
+
+  .pendiente__texto {
+    margin-top: var(--e-2);
+    color: var(--tinta-suave);
+  }
+</style>

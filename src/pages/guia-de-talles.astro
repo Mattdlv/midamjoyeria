@@ -1,0 +1,106 @@
+---
+import Base from '../layouts/Base.astro';
+import ListingHead from '../components/ListingHead.astro';
+import Pending from '../components/Pending.astro';
+import { enlaceWhatsApp, porCategoria } from '../lib/catalogo';
+
+const talles = [...new Set(porCategoria('anillos').flatMap((p) => p.talles))].sort((a, b) => a - b);
+---
+
+<Base titulo="Guía de talles" descripcion="Cómo elegir el talle de tu anillo de Midam." mensajeWhatsApp="¡Hola Midam! Necesito ayuda con el talle de un anillo.">
+  <ListingHead etiqueta="Guía" titulo="Tu talle" promesa="Dos minutos, una regla y listo." doodle="estrella" />
+  <div class="contenedor pagina">
+    <ol class="pasos">
+      <li><span class="pasos__n">1</span><h2>Elegí un anillo que ya te quede bien</h2><p>Usá uno del dedo donde vas a llevar el nuevo.</p></li>
+      <li><span class="pasos__n">2</span><h2>Medí el diámetro interno</h2><p>Apoyalo sobre una regla y medí de borde a borde, por dentro, en milímetros.</p></li>
+      <li><span class="pasos__n">3</span><h2>Escribinos si dudás</h2><p>Mandanos la medida y lo vemos con vos antes de que hagas el pedido.</p></li>
+    </ol>
+
+    <p class="talles__titulo etiqueta">Talles en el catálogo actual</p>
+    <ul class="talles">
+      {talles.map((t) => <li>{t}</li>)}
+      <li class="talles__regulable">Regulable</li>
+    </ul>
+
+    <a class="boton" href={enlaceWhatsApp('¡Hola Midam! Necesito ayuda con el talle de un anillo.')} target="_blank" rel="noopener">Preguntar por WhatsApp</a>
+
+    <div class="falta">
+      <Pending titulo="Tabla de equivalencias">
+        Falta que Midam confirme a cuántos milímetros corresponde cada talle (16 a 20).
+      </Pending>
+      <Pending titulo="Cuidados de cada pieza">
+        Cómo limpiar y guardar cada pieza depende del material y del baño, que todavía no están confirmados.
+      </Pending>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .pagina {
+    padding-block: var(--e-6) var(--e-8);
+    max-width: 52rem;
+  }
+
+  .pasos {
+    display: grid;
+    gap: var(--e-5);
+  }
+
+  .pasos li {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr;
+    column-gap: var(--e-3);
+  }
+
+  .pasos__n {
+    grid-row: 1 / 3;
+    font-family: var(--f-titulo);
+    font-style: italic;
+    font-size: 3rem;
+    line-height: 1;
+    color: var(--oro-texto);
+  }
+
+  .pasos h2 {
+    font-size: var(--t-h3);
+  }
+
+  .pasos p {
+    margin-top: var(--e-1);
+    color: var(--tinta-suave);
+  }
+
+  .talles__titulo {
+    margin-top: var(--e-7);
+    color: var(--oro-texto);
+  }
+
+  .talles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-2);
+    margin-block: var(--e-3) var(--e-5);
+  }
+
+  .talles li {
+    display: grid;
+    place-items: center;
+    min-width: 3rem;
+    height: 3rem;
+    border: 1.5px solid var(--tinta);
+    border-radius: 50%;
+    font-family: var(--f-titulo);
+    font-size: 1.125rem;
+  }
+
+  .talles .talles__regulable {
+    padding-inline: var(--e-4);
+    border-radius: 999px;
+  }
+
+  .falta {
+    display: grid;
+    gap: var(--e-3);
+    margin-top: var(--e-7);
+  }
+</style>

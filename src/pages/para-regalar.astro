@@ -1,0 +1,67 @@
+---
+import Base from '../layouts/Base.astro';
+import ListingHead from '../components/ListingHead.astro';
+import SectionHead from '../components/SectionHead.astro';
+import Ticket from '../components/Ticket.astro';
+import ProductCard from '../components/ProductCard';
+import Pending from '../components/Pending.astro';
+import { RANGOS, enRango } from '../lib/catalogo';
+
+const MUESTRA = 8;
+const bandas = RANGOS.map((r) => {
+  const lista = enRango(r.id);
+  // Se alternan categorías para que cada bloque muestre variedad.
+  const porTipo = [...new Set(lista.map((p) => p.categoria))].map((c) => lista.filter((p) => p.categoria === c));
+  const mezcla = [];
+  for (let i = 0; mezcla.length < Math.min(MUESTRA, lista.length); i++) porTipo.forEach((t) => t[i] && mezcla.push(t[i]));
+  return { ...r, total: lista.length, muestra: mezcla.slice(0, MUESTRA) };
+});
+---
+
+<Base titulo="Para regalar" descripcion="Regalos de Midam Joyería por rango de precio." mensajeWhatsApp="¡Hola Midam! Quiero hacer un regalo y necesito ayuda para elegir.">
+  <ListingHead etiqueta="Tercer acto" titulo="Para regalar" promesa="¿No sabés qué elegir? Empezá por cuánto querés gastar." doodle="corazon" />
+
+  <div class="contenedor">
+    <div class="entradas">
+      {bandas.map((b, i) => <Ticket href={`#${b.id}`} titulo={b.nombre} nota={b.nota} cantidad={b.total} numero={i + 1} />)}
+    </div>
+
+    {bandas.map((b) => (
+      <section class="banda" id={b.id}>
+        <SectionHead titulo={b.nombre} bajada={`${b.nota[0].toUpperCase()}${b.nota.slice(1)}.`} enlace={{ href: `/tienda?precio=${b.id}`, texto: `Ver las ${b.total}` }} />
+        <ul class="grilla grilla--4">
+          {b.muestra.map((p) => <li><ProductCard producto={p} /></li>)}
+        </ul>
+      </section>
+    ))}
+
+    <div class="falta">
+      <Pending titulo="Packaging y tarjeta con mensaje">
+        Falta saber si Midam tiene caja o bolsa de regalo y si la cobra aparte.
+      </Pending>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .entradas {
+    display: grid;
+    gap: var(--e-3);
+    margin-top: var(--e-5);
+  }
+
+  @media (min-width: 900px) {
+    .entradas {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--e-4);
+    }
+  }
+
+  .banda {
+    padding-top: var(--e-8);
+  }
+
+  .falta {
+    padding-block: var(--e-7) var(--e-8);
+  }
+</style>

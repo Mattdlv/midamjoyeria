@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import ListingHead from '../components/ListingHead.astro';
+import CatalogBrowser from '../components/CatalogBrowser';
+import { productos } from '../lib/catalogo';
+---
+
+<Base titulo="Búsqueda" descripcion="Buscá en el elenco de Midam.">
+  <ListingHead etiqueta="Búsqueda" titulo="¿A quién buscás?" doodle="espiral" />
+  <section class="contenedor seccion-catalogo">
+    <CatalogBrowser client:load productos={productos} busqueda />
+  </section>
+</Base>
+
+<style>
+  .seccion-catalogo {
+    padding-block: var(--e-5) var(--e-8);
+  }
+</style>

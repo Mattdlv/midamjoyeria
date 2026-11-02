@@ -1,0 +1,46 @@
+---
+import Base from '../layouts/Base.astro';
+import ListingHead from '../components/ListingHead.astro';
+import Pending from '../components/Pending.astro';
+import { CONTACTO, enlaceWhatsApp } from '../lib/catalogo';
+---
+
+<Base titulo="Ayuda" descripcion="Envíos, cambios y preguntas frecuentes de Midam Joyería.">
+  <ListingHead etiqueta="Ayuda" titulo="¿Qué pasó?" promesa="Si no está acá, escribinos." doodle="espiral" />
+  <div class="contenedor pagina">
+    <section class="contacto">
+      <h2>Hablemos</h2>
+      <p>{CONTACTO.ciudad}. {CONTACTO.horario}.</p>
+      <a class="boton" href={enlaceWhatsApp('¡Hola Midam! Tengo una consulta.')} target="_blank" rel="noopener">Escribir por WhatsApp</a>
+    </section>
+    <Pending id="envios" titulo="Envíos y cambios">
+      Zonas, costos, plazos, retiro y condiciones de cambio. Solo se publican con las políticas reales de Midam.
+    </Pending>
+    <Pending id="preguntas" titulo="Preguntas frecuentes">
+      Talles, material, pagos, tiempos y pedidos especiales.
+    </Pending>
+    <Pending id="legales" titulo="Legales">
+      Botón de arrepentimiento, términos, privacidad, defensa del consumidor y datos fiscales. A revisar con un asesor.
+    </Pending>
+  </div>
+</Base>
+
+<style>
+  .pagina {
+    display: grid;
+    gap: var(--e-4);
+    padding-block: var(--e-6) var(--e-8);
+    max-width: 52rem;
+  }
+
+  .contacto {
+    display: grid;
+    gap: var(--e-2);
+    justify-items: start;
+    margin-bottom: var(--e-4);
+  }
+
+  .contacto h2 {
+    font-size: var(--t-h2);
+  }
+</style>

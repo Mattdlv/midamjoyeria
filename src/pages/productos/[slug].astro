@@ -1,0 +1,267 @@
+---
+import Base from '../../layouts/Base.astro';
+import Gallery from '../../components/Gallery.astro';
+import AddToBag from '../../components/AddToBag';
+import ProductCard, { IconoGiro } from '../../components/ProductCard';
+import SectionHead from '../../components/SectionHead.astro';
+import Doodle from '../../components/Doodle.astro';
+import { CATEGORIAS, completarLook, enlaceWhatsApp, formatoPrecio, notaStock, numeroElenco, productos } from '../../lib/catalogo';
+
+export function getStaticPaths() {
+  return productos.map((p) => ({ params: { slug: p.slug }, props: { producto: p } }));
+}
+
+const { producto: p } = Astro.props;
+const categoria = CATEGORIAS.find((c) => c.id === p.categoria)!;
+const queda = notaStock(p.stock);
+const gira = p.lineas.includes('giratoria');
+const esAnillo = p.categoria === 'anillos';
+const look = completarLook(p);
+const consulta = `¡Hola Midam! Tengo una consulta sobre ${p.nombre} (${p.descripcion}).`;
+const consultaTalle = `¡Hola Midam! Quiero saber qué talle me conviene en ${p.nombre}.`;
+const tono = p.variantes?.etiqueta === 'Tono' ? null : { plateado: 'Plateado', dorado: 'Dorado', mixto: 'Varios tonos' }[p.tono];
+const talleTexto = p.regulable ? 'Regulable' : p.talles.length ? p.talles.join(' y ') : null;
+---
+
+<Base titulo={`${p.nombre}, ${p.descripcion.toLowerCase()}`} descripcion={`${p.descripcion}. ${formatoPrecio(p.precio)}. Pedilo en la tienda de Midam y lo cerramos por WhatsApp.`} mensajeWhatsApp={consulta} imagen={p.fotos[0].m}>
+  <div class="contenedor ficha">
+    <nav class="migas" aria-label="Ruta">
+      <a href="/tienda">Tienda</a>
+      <span aria-hidden="true">/</span>
+      <a href={`/tienda/${categoria.id}`}>{categoria.nombre}</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{p.nombre}</span>
+    </nav>
+
+    <div class="ficha__rejilla">
+      <Gallery producto={p} />
+
+      <div class="ficha__datos">
+        <p class="etiqueta ficha__numero">
+          {numeroElenco(p.numero)}
+          {gira && <span class="ficha__gira"><IconoGiro tamano={14} /> Gira</span>}
+        </p>
+        <h1>{p.nombre}</h1>
+        <p class="ficha__descripcion">{p.descripcion}</p>
+        <p class="ficha__precio">
+          <span class="precio">{formatoPrecio(p.precio)}</span>
+          <span class="queda" data-queda>{queda}</span>
+        </p>
+
+        <AddToBag client:load producto={p} />
+
+        <p class="ficha__whatsapp">
+          <a class="enlace" href={enlaceWhatsApp(esAnillo && !p.regulable ? consultaTalle : consulta)} target="_blank" rel="noopener">
+            {esAnillo && !p.regulable ? '¿Dudas con el talle? Preguntanos por WhatsApp' : 'Consultar por WhatsApp'}
+          </a>
+        </p>
+
+        {gira && (
+          <aside class="ficha__nota">
+            <Doodle tipo="espiral" tamano={30} />
+            <p>Tiene una parte que se mueve con los dedos. Linda de mirar y buenísima para las manos inquietas.</p>
+          </aside>
+        )}
+
+        <div class="acordeon">
+          <details open>
+            <summary>Detalle</summary>
+            <dl>
+              {tono && <div><dt>Tono</dt><dd>{tono}</dd></div>}
+              {p.material && <div><dt>Material</dt><dd>{p.material}</dd></div>}
+              {talleTexto && <div><dt>Talle</dt><dd>{talleTexto}</dd></div>}
+              {p.medida && <div><dt>Medida</dt><dd>{p.medida}</dd></div>}
+              <div><dt>Código</dt><dd>{p.codigo}</dd></div>
+            </dl>
+          </details>
+          {esAnillo && !p.regulable && (
+            <details>
+              <summary>Cómo elegir tu talle</summary>
+              <p>Mirá la <a class="enlace" href="/guia-de-talles">guía de talles</a> o escribinos y lo vemos con vos.</p>
+            </details>
+          )}
+          <details>
+            <summary>Cómo es la compra</summary>
+            <p>Sumás tus piezas a la bolsa y nos mandás el pedido por WhatsApp. Ahí confirmamos el pago y si retirás o te lo enviamos.</p>
+          </details>
+          <details>
+            <summary>Cuidados, envíos y cambios</summary>
+            <p class="pendiente">Falta confirmar con Midam. Mientras tanto, <a class="enlace" href="/ayuda">mirá la ayuda</a> o consultanos.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="contenedor seccion-look">
+    <SectionHead titulo="Completá <em>el look</em>" bajada="Otras piezas del elenco que le hacen juego." />
+    <ul class="grilla grilla--4">
+      {look.map((x) => <li><ProductCard producto={x} /></li>)}
+    </ul>
+  </section>
+</Base>
+
+<style>
+  .ficha {
+    padding-top: var(--e-3);
+  }
+
+  .migas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-1) var(--e-2);
+    margin-bottom: var(--e-3);
+    color: var(--tinta-suave);
+    font-size: var(--t-detalle);
+  }
+
+  .migas a {
+    text-underline-offset: 0.2em;
+  }
+
+  .ficha__rejilla {
+    display: grid;
+    gap: var(--e-5);
+  }
+
+  .ficha__datos {
+    min-width: 0;
+  }
+
+  .ficha__numero {
+    display: flex;
+    align-items: center;
+    gap: var(--e-3);
+    color: var(--oro-texto);
+  }
+
+  .ficha__gira {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--e-1);
+    padding: 0.0625rem var(--e-2);
+    border-radius: 999px;
+    background: var(--tinta);
+    color: var(--papel);
+  }
+
+  h1 {
+    margin-top: var(--e-2);
+    font-size: var(--t-h1);
+    font-weight: 380;
+    overflow-wrap: anywhere;
+  }
+
+  .ficha__descripcion {
+    margin-top: var(--e-1);
+    color: var(--tinta-suave);
+    font-size: 1.125rem;
+  }
+
+  .ficha__precio {
+    display: flex;
+    align-items: baseline;
+    gap: var(--e-3);
+    margin-block: var(--e-3) var(--e-5);
+  }
+
+  .ficha__precio .precio {
+    font-size: 1.5rem;
+  }
+
+  .ficha__whatsapp {
+    margin-top: var(--e-3);
+    font-size: var(--t-detalle);
+  }
+
+  .ficha__nota {
+    display: flex;
+    gap: var(--e-3);
+    align-items: flex-start;
+    margin-top: var(--e-5);
+    padding: var(--e-4);
+    border-radius: var(--radio);
+    background: var(--tornasol);
+  }
+
+  .ficha__nota :global(svg) {
+    flex: none;
+    color: var(--rojo);
+  }
+
+  .acordeon {
+    margin-top: var(--e-5);
+    border-top: 1px solid var(--linea-suave);
+  }
+
+  details {
+    border-bottom: 1px solid var(--linea-suave);
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 3.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary::after {
+    content: '+';
+    font-size: 1.375rem;
+    font-weight: 400;
+    transition: transform var(--rapido);
+  }
+
+  details[open] summary::after {
+    transform: rotate(45deg);
+  }
+
+  details > p,
+  dl {
+    margin: 0 0 var(--e-4);
+  }
+
+  dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--e-4);
+    padding-block: var(--e-1);
+  }
+
+  dt {
+    color: var(--tinta-suave);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+
+  .pendiente {
+    color: var(--tinta-suave);
+  }
+
+  .seccion-look {
+    padding-block: var(--e-8);
+  }
+
+  @media (min-width: 1024px) {
+    .ficha__rejilla {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--e-7);
+      align-items: start;
+    }
+
+    .ficha__datos {
+      position: sticky;
+      top: calc(var(--alto-header) + var(--e-4));
+    }
+  }
+</style>

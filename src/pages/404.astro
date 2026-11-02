@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base titulo="No encontrada">
+  <section class="contenedor error">
+    <p class="etiqueta">Error 404</p>
+    <h1>Esta pieza <em>se fue de gira.</em></h1>
+    <p>La página que buscás no está. El resto del elenco, sí.</p>
+    <a class="boton" href="/tienda">Ver el elenco</a>
+  </section>
+</Base>
+
+<style>
+  .error {
+    display: grid;
+    justify-items: start;
+    gap: var(--e-4);
+    padding-block: var(--e-8);
+  }
+
+  .etiqueta {
+    color: var(--oro-texto);
+  }
+
+  h1 {
+    font-size: var(--t-display);
+    font-weight: 360;
+    line-height: 0.96;
+  }
+</style>

@@ -1,0 +1,286 @@
+---
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+import { formatoPrecio } from '../../../lib/catalogo';
+import { METODOS_PAGO, fechaLocal } from '../../../lib/mensaje';
+import { enlaceCliente, mensajeSugerido } from '../../../lib/mensajes-panel';
+import { numeroPedido } from '../../../lib/pedidos';
+import { ESTADOS, METODOS_REGISTRO, TRANSICIONES, cambiarEstado, extenderReserva, guardarEntrega, leerConfig, leerPedidoPanel, registrarPago, totalPedido, type Resultado } from '../../../lib/panel';
+
+export const prerender = false;
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+
+const id = Number(Astro.params.id);
+const ruta = `/admin/pedidos/${Astro.params.id}`;
+if (!Number.isInteger(id) || id < 1) return new Response('No encontrado', { status: 404 });
+
+const texto = (v: FormDataEntryValue | null, max = 200) => {
+  const s = typeof v === 'string' ? v.trim().slice(0, max) : '';
+  return s || null;
+};
+/** Acepta "1.500" o "$1500". Vacío es null; lo que no sea un entero queda como NaN y lo rechaza la validación. */
+const monto = (v: FormDataEntryValue | null) => {
+  const s = typeof v === 'string' ? v.replace(/[$.\s]/g, '') : '';
+  return s === '' ? null : /^\d+$/.test(s) ? Number(s) : NaN;
+};
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const accion = f.get('accion');
+  const horas = Number(env.HORAS_RESERVA);
+  let r: Resultado = { ok: false, error: 'transicion' };
+  if (accion === 'estado') r = await cambiarEstado(env.DB, id, String(f.get('destino')), usuario, horas);
+  if (accion === 'extender') r = await extenderReserva(env.DB, id, horas, usuario);
+  if (accion === 'pago') r = await registrarPago(env.DB, id, { metodo: String(f.get('metodo')), monto: monto(f.get('monto')) ?? NaN, referencia: texto(f.get('referencia'), 120) }, usuario);
+  if (accion === 'costo') {
+    const actual = await leerPedidoPanel(env.DB, id);
+    if (actual) {
+      const p = actual.pedido;
+      r = await guardarEntrega(env.DB, id, { costoEnvio: monto(f.get('costo_envio')), costoReal: p.costo_envio_real, empresa: p.seguimiento_empresa, codigo: p.seguimiento_codigo, linkPago: p.link_pago, nota: p.nota_interna }, usuario);
+    }
+  }
+  if (accion === 'entrega') {
+    r = await guardarEntrega(env.DB, id, {
+      costoEnvio: monto(f.get('costo_envio')),
+      costoReal: monto(f.get('costo_real')),
+      empresa: texto(f.get('empresa'), 60),
+      codigo: texto(f.get('codigo'), 80),
+      linkPago: texto(f.get('link_pago'), 300),
+      nota: texto(f.get('nota_interna'), 500),
+    }, usuario);
+  }
+  return Astro.redirect(`${ruta}?aviso=${r.ok ? 'guardado' : r.error}`, 303);
+}
+
+const datos = await leerPedidoPanel(env.DB, id);
+if (!datos) return new Response('No encontrado', { status: 404 });
+const { pedido: p, items, pagos, historial } = datos;
+const config = await leerConfig(env.DB);
+const sugerido = mensajeSugerido(p, config, Astro.url.origin);
+const total = totalPedido(p);
+const restante = total - p.pagado;
+const siguientes = TRANSICIONES[p.estado] ?? [];
+const puedeCobrar = ['confirmado', 'pagado', 'preparado', 'despachado', 'listo_retiro'].includes(p.estado) && restante > 0;
+const envioPendiente = p.tipo_entrega === 'envio' && p.costo_envio == null;
+
+const BOTONES: Record<string, string> = {
+  confirmado: 'Confirmar pedido',
+  preparado: 'Empezar a preparar',
+  despachado: 'Marcar despachado',
+  listo_retiro: 'Listo para retirar',
+  entregado: 'Marcar entregado',
+  creado: 'Reactivar reserva',
+};
+const avance = siguientes.filter((d) => {
+  if (d === 'cancelado' || d === 'devuelto') return false;
+  if (d === 'despachado') return p.tipo_entrega === 'envio';
+  if (d === 'listo_retiro') return p.tipo_entrega === 'retiro';
+  return true;
+});
+const peligro = siguientes.filter((d) => d === 'cancelado' || d === 'devuelto');
+const local = p.whatsapp.replace(/^549/, '');
+---
+
+<Admin titulo={`Pedido ${numeroPedido(p.id)}`} seccion="pedidos">
+  <div class="detalle">
+    <header class="detalle__cabeza panel-titulo">
+      <div>
+        <a class="tarjeta-pedido__detalle" href="/admin">← Pedidos</a>
+        <h1>{numeroPedido(p.id)}</h1>
+        <span class="tarjeta-pedido__detalle">{fechaLocal(p.creado)} h</span>
+      </div>
+      <div class="chips">
+        <span class:list={['chip', ['vencido', 'cancelado', 'devuelto'].includes(p.estado) ? 'chip--alerta' : 'chip--ok']}>{ESTADOS[p.estado]}</span>
+        <span class:list={['chip', p.estado_pago === 'pagado' ? 'chip--ok' : 'chip--neutro']}>Pago: {p.estado_pago}</span>
+      </div>
+    </header>
+
+    {(avance.length > 0 || sugerido) && (
+      <section class="panel-accion" aria-label="Qué sigue">
+        {envioPendiente && p.estado === 'creado' && (
+          <form class="form-costo" method="post">
+            <input type="hidden" name="accion" value="costo" />
+            <div class="campo">
+              <label for="costo-rapido">Costo de envío a {p.localidad} ({p.cp})</label>
+              <input id="costo-rapido" name="costo_envio" inputmode="numeric" required />
+            </div>
+            <button class="boton" type="submit">Guardar</button>
+            <p class="campo__ayuda">Hace falta para poder confirmar.</p>
+          </form>
+        )}
+        {p.estado === 'creado' && <p class="tarjeta-pedido__detalle">Reserva hasta el {fechaLocal(p.reserva_vence_en)} h.</p>}
+        {avance.length > 0 && (
+          <div class="panel-accion__botones">
+            {avance.map((d) => (
+              <form method="post">
+                <input type="hidden" name="accion" value="estado" />
+                <input type="hidden" name="destino" value={d} />
+                <button class="boton" type="submit" disabled={d === 'confirmado' && envioPendiente}>{BOTONES[d]}</button>
+              </form>
+            ))}
+            {p.estado === 'creado' && (
+              <form method="post">
+                <input type="hidden" name="accion" value="extender" />
+                <button class="boton boton--borde" type="submit">Extender {Number(env.HORAS_RESERVA)} h</button>
+              </form>
+            )}
+          </div>
+        )}
+        {sugerido && (
+          <div class="mensaje-sugerido">
+            <h2>{sugerido.titulo}</h2>
+            {sugerido.aviso && <p class="aviso-faltante">{sugerido.aviso}</p>}
+            <pre>{sugerido.texto}</pre>
+            <a class="boton boton--borde" href={enlaceCliente(p.whatsapp, sugerido.texto)} target="_blank" rel="noopener">Abrir en WhatsApp</a>
+          </div>
+        )}
+      </section>
+    )}
+
+    <section class="bloque">
+      <h2>Piezas</h2>
+      <ul class="items-panel">
+        {items.map((i) => (
+          <li>
+            <span>
+              {i.cantidad} × <strong>{i.nombre_al_comprar}</strong>
+              <small>{i.descripcion_al_comprar}{i.opcion && ` · ${i.opcion}`}</small>
+            </span>
+            <span class="precio">{formatoPrecio(i.precio_al_comprar * i.cantidad)}</span>
+          </li>
+        ))}
+      </ul>
+      <dl class="datos-lista">
+        <div><dt>Subtotal</dt><dd>{formatoPrecio(p.subtotal)}</dd></div>
+        <div><dt>Envío</dt><dd>{p.tipo_entrega === 'retiro' ? 'Retiro' : p.costo_envio == null ? 'A confirmar' : formatoPrecio(p.costo_envio)}</dd></div>
+        <div><dt><strong>Total</strong></dt><dd><strong>{formatoPrecio(total)}</strong></dd></div>
+        <div><dt>Cobrado</dt><dd>{formatoPrecio(p.pagado)}</dd></div>
+      </dl>
+    </section>
+
+    <section class="bloque">
+      <h2>Cliente</h2>
+      <dl class="datos-lista">
+        <div><dt>Nombre</dt><dd>{p.nombre_entrega}</dd></div>
+        <div><dt>WhatsApp</dt><dd>{local}</dd></div>
+        <div><dt>Entrega</dt><dd>{p.tipo_entrega === 'retiro' ? 'Retiro' : `${p.direccion}, ${p.localidad} (${p.cp})`}</dd></div>
+        <div><dt>Prefiere pagar</dt><dd>{METODOS_PAGO[p.metodo_pago]}</dd></div>
+        {p.es_regalo === 1 && <div><dt>Regalo</dt><dd>Sí</dd></div>}
+        {p.nota && <div><dt>Nota</dt><dd>{p.nota}</dd></div>}
+        {p.origen && <div><dt>Origen</dt><dd>{p.origen}</dd></div>}
+        <div><dt>Tocó WhatsApp</dt><dd>{p.whatsapp_clic_en ? fechaLocal(p.whatsapp_clic_en) + ' h' : 'No'}</dd></div>
+      </dl>
+      <a class="enlace" href={`/pedido/${p.token}`} target="_blank" rel="noopener">Ver comprobante</a>
+    </section>
+
+    {(puedeCobrar || pagos.length > 0) && (
+      <section class="bloque">
+        <h2>Cobros</h2>
+        {pagos.length > 0 && (
+          <ul class="historial">
+            {pagos.map((g) => (
+              <li>
+                {formatoPrecio(g.monto)} · {METODOS_REGISTRO[g.metodo]}{g.referencia && ` · ${g.referencia}`}
+                <small>{fechaLocal(g.fecha)} h · {g.registrado_por}</small>
+              </li>
+            ))}
+          </ul>
+        )}
+        {puedeCobrar && (
+          <form class="form-panel" method="post">
+            <input type="hidden" name="accion" value="pago" />
+            <div class="form-panel__fila">
+              <div class="campo">
+                <label for="monto">Monto</label>
+                <input id="monto" name="monto" inputmode="numeric" value={restante} required />
+              </div>
+              <div class="campo">
+                <label for="metodo">Medio</label>
+                <select id="metodo" name="metodo">
+                  {Object.entries(METODOS_REGISTRO).map(([k, v]) => <option value={k} selected={k === p.metodo_pago}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div class="campo">
+              <label for="referencia">Referencia (opcional)</label>
+              <input id="referencia" name="referencia" maxlength="120" />
+            </div>
+            <button class="boton boton--borde" type="submit">Registrar pago</button>
+          </form>
+        )}
+      </section>
+    )}
+
+    <section class="bloque">
+      <h2>Entrega y notas</h2>
+      <form class="form-panel" method="post">
+        <input type="hidden" name="accion" value="entrega" />
+        {p.tipo_entrega === 'envio' && (
+          <>
+            <div class="form-panel__fila">
+              <div class="campo">
+                <label for="costo_envio">Envío que cobrás</label>
+                <input id="costo_envio" name="costo_envio" inputmode="numeric" value={p.costo_envio ?? ''} readonly={p.pagado > 0} />
+              </div>
+              <div class="campo">
+                <label for="costo_real">Envío que pagaste</label>
+                <input id="costo_real" name="costo_real" inputmode="numeric" value={p.costo_envio_real ?? ''} />
+              </div>
+            </div>
+            <div class="form-panel__fila">
+              <div class="campo">
+                <label for="empresa">Empresa</label>
+                <input id="empresa" name="empresa" maxlength="60" value={p.seguimiento_empresa ?? ''} />
+              </div>
+              <div class="campo">
+                <label for="codigo">Seguimiento</label>
+                <input id="codigo" name="codigo" maxlength="80" value={p.seguimiento_codigo ?? ''} />
+              </div>
+            </div>
+          </>
+        )}
+        {p.metodo_pago === 'mercado_pago' && (
+          <div class="campo">
+            <label for="link_pago">Link de Mercado Pago</label>
+            <input id="link_pago" name="link_pago" type="url" inputmode="url" maxlength="300" value={p.link_pago ?? ''} placeholder="https://" />
+          </div>
+        )}
+        <div class="campo">
+          <label for="nota_interna">Nota interna (el cliente no la ve)</label>
+          <textarea id="nota_interna" name="nota_interna" rows="2" maxlength="500">{p.nota_interna ?? ''}</textarea>
+        </div>
+        <button class="boton boton--borde" type="submit">Guardar</button>
+      </form>
+    </section>
+
+    <section class="bloque">
+      <h2>Historial</h2>
+      {historial.length === 0 ? (
+        <p class="tarjeta-pedido__detalle">Todavía sin cambios.</p>
+      ) : (
+        <ul class="historial">
+          {historial.map((h) => (
+            <li>
+              {h.detalle}
+              <small>{fechaLocal(h.fecha)} h · {h.usuario}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+      {peligro.map((d) => (
+        <details class="peligro">
+          <summary>{d === 'cancelado' ? 'Cancelar pedido' : 'Registrar devolución'}</summary>
+          <form class="form-panel" method="post">
+            <input type="hidden" name="accion" value="estado" />
+            <input type="hidden" name="destino" value={d} />
+            <p class="tarjeta-pedido__detalle">
+              Devuelve las piezas al stock.{p.pagado > 0 && ` El cliente pagó ${formatoPrecio(p.pagado)}: el reintegro lo hacés aparte.`}
+            </p>
+            <button class="boton boton--peligro" type="submit">{d === 'cancelado' ? 'Sí, cancelar' : 'Sí, registrar devolución'}</button>
+          </form>
+        </details>
+      ))}
+    </section>
+  </div>
+</Admin>

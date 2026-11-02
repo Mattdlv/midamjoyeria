@@ -1,0 +1,166 @@
+---
+import Base from '../layouts/Base.astro';
+import SpinBadge from '../components/SpinBadge.astro';
+import Pending from '../components/Pending.astro';
+import { formatoPrecio, numeroElenco, porLinea } from '../lib/catalogo';
+
+const piezas = porLinea('giratoria').sort((a, b) => b.precio - a.precio);
+---
+
+<Base titulo="Las que giran" descripcion="La línea giratoria de Midam: piezas con una parte que se mueve con los dedos." mensajeWhatsApp="¡Hola Midam! Quiero saber más de las piezas que giran.">
+  <header class="portada sobre-oscuro">
+    <div class="contenedor portada__rejilla">
+      <div>
+        <p class="etiqueta">Segundo acto</p>
+        <h1>Las que <em>giran.</em></h1>
+        <p class="portada__bajada">Tienen una parte que se mueve con los dedos. Lindas de mirar y buenísimas para las manos inquietas.</p>
+      </div>
+      <SpinBadge class="portada__sello" />
+    </div>
+  </header>
+
+  <div class="contenedor">
+    {piezas.map((p, i) => (
+      <article class:list={['pieza', { 'pieza--invertida': i % 2 === 1 }]}>
+        <a class="pieza__foto" href={`/productos/${p.slug}`} aria-label={`Ver ${p.nombre}`}>
+          <img src={p.fotos[Math.min(1, p.fotos.length - 1)].m} alt={`${p.descripcion}: ${p.nombre}`} width="840" height="1050" loading={i === 0 ? 'eager' : 'lazy'} />
+        </a>
+        <div class="pieza__texto">
+          <p class="etiqueta pieza__numero">{numeroElenco(p.numero)}</p>
+          <h2>{p.nombre}</h2>
+          <p class="pieza__descripcion">{p.descripcion}</p>
+          <p class="precio pieza__precio">{formatoPrecio(p.precio)}</p>
+          <a class="boton" href={`/productos/${p.slug}`}>Ver {p.nombre}</a>
+        </div>
+      </article>
+    ))}
+
+    <div class="pendientes">
+      <Pending titulo="El clip de cada pieza girando">
+        Hacen falta videos de 3 a 5 segundos, en bucle y sin sonido. Es lo que va a explicar esta línea mejor que cualquier texto.
+      </Pending>
+      <Pending titulo="Cómo funciona cada pieza">
+        Falta saber qué parte gira en cada una y confirmar el material. Lilith figura en el catálogo como anillo "antiestrés": lo incluí en esta línea por la foto, y hay que confirmarlo.
+      </Pending>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .portada {
+    background: var(--tinta-honda);
+    color: var(--papel);
+    padding-block: var(--e-6) var(--e-7);
+  }
+
+  .portada .etiqueta {
+    color: var(--agua);
+  }
+
+  .portada__rejilla {
+    display: grid;
+    gap: var(--e-5);
+    align-items: end;
+  }
+
+  h1 {
+    margin-top: var(--e-2);
+    font-size: var(--t-display);
+    font-weight: 340;
+    line-height: 0.94;
+  }
+
+  h1 em {
+    color: var(--agua);
+  }
+
+  .portada__bajada {
+    max-width: 30rem;
+    margin-top: var(--e-4);
+  }
+
+  .portada :global(.portada__sello) {
+    background: var(--agua);
+    color: var(--tinta-honda);
+  }
+
+  .pieza {
+    display: grid;
+    gap: var(--e-4);
+    padding-block: var(--e-6);
+    border-bottom: 1.5px solid var(--tinta);
+  }
+
+  .pieza__foto {
+    display: block;
+    overflow: hidden;
+    border-radius: 999px 999px var(--radio) var(--radio);
+  }
+
+  .pieza__foto img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    transition: transform var(--medio) var(--curva);
+  }
+
+  .pieza__foto:hover img {
+    transform: scale(1.03);
+  }
+
+  .pieza__numero {
+    color: var(--oro-texto);
+  }
+
+  h2 {
+    margin-top: var(--e-2);
+    font-size: var(--t-h1);
+    font-weight: 380;
+  }
+
+  .pieza__descripcion {
+    margin-top: var(--e-1);
+    color: var(--tinta-suave);
+    font-size: 1.125rem;
+  }
+
+  .pieza__precio {
+    margin-block: var(--e-3) var(--e-4);
+    font-size: 1.5rem;
+  }
+
+  .pendientes {
+    display: grid;
+    gap: var(--e-3);
+    padding-block: var(--e-6) var(--e-8);
+  }
+
+  @media (min-width: 768px) {
+    .portada__rejilla {
+      grid-template-columns: 1fr auto;
+    }
+
+    .pieza {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--e-7);
+      align-items: center;
+    }
+
+    .pieza--invertida .pieza__foto {
+      order: 2;
+    }
+
+    .pendientes {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .pieza__foto {
+      max-width: 30rem;
+      justify-self: center;
+      width: 100%;
+    }
+  }
+</style>

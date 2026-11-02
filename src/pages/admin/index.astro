@@ -1,0 +1,80 @@
+---
+import { env } from '../../lib/entorno';
+import Admin from '../../layouts/Admin.astro';
+import { formatoPrecio } from '../../lib/catalogo';
+import { numeroPedido } from '../../lib/pedidos';
+import { BANDEJAS, ESTADOS, contarBandejas, listarPedidos, totalPedido } from '../../lib/panel';
+
+export const prerender = false;
+if (!Astro.locals.usuario) return new Response('No autorizado', { status: 403 });
+
+const parametros = Astro.url.searchParams;
+const q = (parametros.get('q') ?? '').slice(0, 80);
+const bandeja = parametros.get('bandeja') ?? 'confirmar';
+const pagina = Math.max(1, Number(parametros.get('pagina')) || 1);
+
+const { pedidos, hayMas } = await listarPedidos(env.DB, { bandeja, q, pagina });
+const cuentas = await contarBandejas(env.DB);
+
+const hace = (ms: number) => {
+  const min = Math.round((Date.now() - ms) / 60_000);
+  if (min < 60) return `hace ${Math.max(min, 0)} min`;
+  const horas = Math.round(min / 60);
+  if (horas < 48) return `hace ${horas} h`;
+  return `hace ${Math.round(horas / 24)} días`;
+};
+const enlacePagina = (n: number) => `/admin?${q ? `q=${encodeURIComponent(q)}` : `bandeja=${bandeja}`}&pagina=${n}`;
+const claseEstado = (e: string) => (['vencido', 'cancelado', 'devuelto'].includes(e) ? 'chip--alerta' : e === 'creado' ? 'chip--neutro' : 'chip--ok');
+---
+
+<Admin titulo="Pedidos" seccion="pedidos">
+  <div class="panel-titulo">
+    <h1>Pedidos</h1>
+    <a class="boton boton--borde boton--chico" href="/admin/exportar/pedidos.csv">Exportar</a>
+  </div>
+
+  <form class="panel-buscar" method="get" role="search">
+    <input type="search" name="q" value={q} placeholder="Número, nombre o teléfono" aria-label="Buscar pedidos" />
+    <button class="boton boton--chico" type="submit">Buscar</button>
+  </form>
+
+  {!q && (
+    <nav class="bandejas" aria-label="Bandejas">
+      {BANDEJAS.map((b) => (
+        <a class="pildora" href={`/admin?bandeja=${b.id}`} aria-current={bandeja === b.id ? 'page' : undefined}>
+          {b.nombre} <b>{cuentas[b.id]}</b>
+        </a>
+      ))}
+    </nav>
+  )}
+  {q && <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-3)">Resultados para “{q}”. <a href="/admin">Volver a las bandejas</a></p>}
+
+  {pedidos.length === 0 ? (
+    <p class="vacio-panel">No hay pedidos acá.</p>
+  ) : (
+    <ul class="lista-pedidos">
+      {pedidos.map((p) => (
+        <li>
+          <a class="tarjeta-pedido" href={`/admin/pedidos/${p.id}`}>
+            <span class="tarjeta-pedido__numero">{numeroPedido(p.id)}</span>
+            <span class="tarjeta-pedido__total">{formatoPrecio(totalPedido(p))}{p.tipo_entrega === 'envio' && p.costo_envio == null && ' + envío'}</span>
+            <span class="tarjeta-pedido__detalle">{p.nombre_entrega} · {p.items_cantidad} {p.items_cantidad === 1 ? 'pieza' : 'piezas'} · {p.tipo_entrega === 'retiro' ? 'Retiro' : p.localidad}</span>
+            <span class="tarjeta-pedido__detalle" style="text-align: right">{hace(p.creado)}</span>
+            <span class="chips">
+              <span class:list={['chip', claseEstado(p.estado)]}>{ESTADOS[p.estado]}</span>
+              {p.estado_pago === 'parcial' && <span class="chip chip--alerta">Pago parcial</span>}
+              {p.estado === 'creado' && !p.whatsapp_clic_en && <span class="chip chip--alerta">No tocó WhatsApp</span>}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {(pagina > 1 || hayMas) && (
+    <nav class="paginas" aria-label="Páginas">
+      {pagina > 1 ? <a class="enlace" href={enlacePagina(pagina - 1)}>← Anteriores</a> : <span></span>}
+      {hayMas && <a class="enlace" href={enlacePagina(pagina + 1)}>Siguientes →</a>}
+    </nav>
+  )}
+</Admin>

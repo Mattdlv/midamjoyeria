@@ -1,0 +1,33 @@
+---
+import { env } from '../../lib/entorno';
+import Admin from '../../layouts/Admin.astro';
+import { guardarConfig, leerConfig } from '../../lib/panel';
+
+export const prerender = false;
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  await guardarConfig(env.DB, { datos_transferencia: String(f.get('datos_transferencia') ?? '').trim(), punto_retiro: String(f.get('punto_retiro') ?? '').trim() }, usuario);
+  return Astro.redirect('/admin/ajustes?aviso=guardado', 303);
+}
+const c = await leerConfig(env.DB);
+---
+
+<Admin titulo="Ajustes" seccion="ajustes">
+  <h1 style="margin-bottom: var(--e-4)">Ajustes</h1>
+  <form class="bloque form-panel" method="post">
+    <div class="campo">
+      <label for="datos_transferencia">Datos para transferencia</label>
+      <textarea id="datos_transferencia" name="datos_transferencia" rows="3" maxlength="500">{c.datos_transferencia ?? ''}</textarea>
+      <p class="campo__ayuda">Alias, CBU y titular. El cliente los ve recién cuando confirmás su pedido.</p>
+    </div>
+    <div class="campo">
+      <label for="punto_retiro">Lugar y horario de retiro</label>
+      <textarea id="punto_retiro" name="punto_retiro" rows="2" maxlength="500">{c.punto_retiro ?? ''}</textarea>
+      <p class="campo__ayuda">Se manda por WhatsApp y se muestra en el comprobante cuando el pedido está listo.</p>
+    </div>
+    <button class="boton" type="submit">Guardar</button>
+  </form>
+</Admin>

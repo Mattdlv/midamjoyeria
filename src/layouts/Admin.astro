@@ -1,0 +1,77 @@
+---
+import '@fontsource-variable/fraunces/full.css';
+import '@fontsource-variable/fraunces/full-italic.css';
+import '@fontsource-variable/dm-sans/index.css';
+import '../styles/global.css';
+import '../styles/pedido.css';
+import '../styles/admin.css';
+
+interface Props {
+  titulo: string;
+  seccion: 'pedidos' | 'stock' | 'ajustes';
+}
+const { titulo, seccion } = Astro.props;
+const usuario = Astro.locals.usuario;
+
+const MENSAJES: Record<string, string> = {
+  guardado: 'Listo, quedó guardado.',
+  no_existe: 'Ese registro no existe.',
+  transicion: 'Ese cambio de estado no es posible ahora.',
+  cambio: 'Alguien lo cambió recién. Revisá cómo quedó y volvé a intentar.',
+  sin_stock: 'No hay stock suficiente para hacer eso.',
+  falta_envio: 'Cargá el costo de envío antes de confirmar.',
+  falta_pago: 'Registrá el pago completo antes de marcarlo entregado.',
+  pago_estado: 'Solo se registran pagos de pedidos confirmados y en curso.',
+  pago_datos: 'Revisá el medio y el monto del pago.',
+  pago_excede: 'El monto supera lo que falta cobrar.',
+  envio_bloqueado: 'El costo de envío ya no se puede cambiar: el pedido tiene pagos o está cerrado.',
+  monto: 'Revisá los números: tienen que ser enteros y sin signo.',
+  link: 'El link de pago tiene que empezar con https://',
+};
+const clave = Astro.url.searchParams.get('aviso') ?? '';
+const aviso = MENSAJES[clave];
+const esError = Boolean(aviso) && clave !== 'guardado';
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{titulo} | Panel Midam</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#142A47" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body class="panel">
+    <header class="panel__cabeza">
+      <a class="panel__marca" href="/admin">MIDAM <span>panel</span></a>
+      <nav aria-label="Panel">
+        <a href="/admin" aria-current={seccion === 'pedidos' ? 'page' : undefined}>Pedidos</a>
+        <a href="/admin/stock" aria-current={seccion === 'stock' ? 'page' : undefined}>Stock</a>
+        <a href="/admin/ajustes" aria-current={seccion === 'ajustes' ? 'page' : undefined}>Ajustes</a>
+      </nav>
+    </header>
+    <main class="panel__cuerpo">
+      {aviso && <p class:list={['panel__aviso', { 'panel__aviso--error': esError }]} role={esError ? 'alert' : 'status'}>{aviso}</p>}
+      <slot />
+    </main>
+    <footer class="panel__pie">
+      <span>{usuario}</span>
+      <a href="/" target="_blank" rel="noopener">Ver la tienda</a>
+      <form method="post" action="/admin/salir"><button class="panel__salir" type="submit">Salir</button></form>
+    </footer>
+    <script>
+      // Evita el doble envío de formularios.
+      document.addEventListener('submit', (e) => {
+        const f = e.target as HTMLFormElement;
+        if (f.method.toLowerCase() !== 'post') return;
+        if (f.dataset.enviado) {
+          e.preventDefault();
+          return;
+        }
+        f.dataset.enviado = '1';
+      });
+    </script>
+  </body>
+</html>

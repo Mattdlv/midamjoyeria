@@ -1,0 +1,285 @@
+---
+import BagButton from './BagButton';
+import { CATEGORIAS, porCategoria } from '../lib/catalogo';
+
+const actual = Astro.url.pathname;
+const activa = (ruta: string) => actual === ruta || actual.startsWith(ruta + '/');
+const categorias = CATEGORIAS.map((c) => ({ ...c, cantidad: porCategoria(c.id).length }));
+---
+
+<div class="franja">Elegís acá, cerramos tu pedido por WhatsApp.</div>
+<header class="cabecera">
+  <div class="contenedor cabecera__fila">
+    <button class="icono-boton cabecera__menu" type="button" id="abrir-menu" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 8h16M4 16h11"></path></svg>
+    </button>
+
+    <a class="marca" href="/" aria-label="Midam Joyería, inicio">
+      <img src="/img/sello.webp" alt="" width="44" height="49" />
+      <span class="marca__texto">MIDAM</span>
+    </a>
+
+    <nav class="nav" aria-label="Principal">
+      <ul>
+        <li class="nav__grupo">
+          <a href="/tienda" aria-current={activa('/tienda') ? 'page' : undefined}>Tienda</a>
+          <ul class="nav__sub">
+            {categorias.map((c) => <li><a href={`/tienda/${c.id}`}>{c.nombre} <span>{c.cantidad}</span></a></li>)}
+            <li><a href="/tienda">Ver todo</a></li>
+          </ul>
+        </li>
+        <li><a href="/giratorias" aria-current={activa('/giratorias') ? 'page' : undefined}>Las que giran</a></li>
+        <li><a href="/para-regalar" aria-current={activa('/para-regalar') ? 'page' : undefined}>Para regalar</a></li>
+        <li><a href="/guia-de-talles" aria-current={activa('/guia-de-talles') ? 'page' : undefined}>Guía de talles</a></li>
+        <li><a href="/nosotros" aria-current={activa('/nosotros') ? 'page' : undefined}>Nosotros</a></li>
+        <li><a href="/ayuda" aria-current={activa('/ayuda') ? 'page' : undefined}>Ayuda</a></li>
+      </ul>
+    </nav>
+
+    <div class="cabecera__acciones">
+      <button class="icono-boton" type="button" aria-label="Buscar" id="abrir-buscador">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+      </button>
+      <BagButton client:idle />
+    </div>
+  </div>
+</header>
+
+<div class="menu sobre-oscuro" id="menu" hidden>
+  <div class="menu__cabeza">
+    <span class="etiqueta">Programa</span>
+    <button class="icono-boton" type="button" id="cerrar-menu" aria-label="Cerrar menú">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+  </div>
+  <ul class="menu__principal">
+    {categorias.map((c) => <li><a href={`/tienda/${c.id}`}>{c.nombre}<sup>{c.cantidad}</sup></a></li>)}
+  </ul>
+  <ul class="menu__secundario">
+    <li><a href="/tienda">Toda la tienda</a></li>
+    <li><a href="/giratorias">Las que giran</a></li>
+    <li><a href="/para-regalar">Para regalar</a></li>
+    <li><a href="/guia-de-talles">Guía de talles</a></li>
+    <li><a href="/nosotros">Nosotros</a></li>
+    <li><a href="/ayuda">Ayuda</a></li>
+  </ul>
+</div>
+
+<script>
+  const menu = document.getElementById('menu')!;
+  const abrir = document.getElementById('abrir-menu')!;
+  const cerrar = document.getElementById('cerrar-menu')!;
+  const alternar = (ver: boolean) => {
+    menu.hidden = !ver;
+    abrir.setAttribute('aria-expanded', String(ver));
+    document.body.classList.toggle('sin-scroll', ver);
+    (ver ? cerrar : abrir).focus();
+  };
+  abrir.addEventListener('click', () => alternar(true));
+  cerrar.addEventListener('click', () => alternar(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.hidden) alternar(false);
+  });
+  document.getElementById('abrir-buscador')!.addEventListener('click', () => window.dispatchEvent(new Event('midam:buscar')));
+</script>
+
+<style>
+  .franja {
+    padding: var(--e-1) var(--margen);
+    background: var(--tinta);
+    color: var(--papel);
+    font-size: var(--t-detalle);
+    text-align: center;
+  }
+
+  .cabecera {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--papel);
+    border-bottom: 1px solid var(--linea-suave);
+  }
+
+  .cabecera__fila {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: var(--alto-header);
+  }
+
+  .cabecera__menu {
+    justify-self: start;
+    margin-left: -0.5rem;
+  }
+
+  .marca {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    text-decoration: none;
+  }
+
+  .marca img {
+    width: 2.5rem;
+    height: auto;
+  }
+
+  .marca__texto {
+    font-family: var(--f-titulo);
+    font-size: 1.25rem;
+    letter-spacing: 0.16em;
+    font-weight: 500;
+  }
+
+  .cabecera__acciones {
+    display: flex;
+    justify-self: end;
+    margin-right: -0.5rem;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .cabecera__fila {
+      grid-template-columns: auto 1fr auto;
+      gap: var(--e-6);
+    }
+
+    .cabecera__menu {
+      display: none;
+    }
+
+    .nav {
+      display: block;
+    }
+
+    .nav > ul {
+      display: flex;
+      gap: var(--e-5);
+    }
+
+    .nav a {
+      display: block;
+      padding-block: var(--e-2);
+      font-size: 0.9375rem;
+      text-decoration: none;
+      background: linear-gradient(currentColor, currentColor) 0 calc(100% - 0.25rem) / 0 1.5px no-repeat;
+      transition: background-size var(--medio) var(--curva);
+    }
+
+    .nav a:hover,
+    .nav a[aria-current='page'] {
+      background-size: 100% 1.5px;
+    }
+
+    .nav__grupo {
+      position: relative;
+    }
+
+    .nav__sub {
+      position: absolute;
+      left: calc(var(--e-4) * -1);
+      top: 100%;
+      min-width: 13rem;
+      padding: var(--e-2) var(--e-4);
+      background: var(--papel);
+      border: 1px solid var(--linea-suave);
+      border-radius: var(--radio);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(4px);
+      transition: opacity var(--rapido), transform var(--rapido), visibility var(--rapido);
+    }
+
+    .nav__grupo:hover .nav__sub,
+    .nav__grupo:focus-within .nav__sub {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+    }
+
+    .nav__sub a {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--f-titulo);
+      font-size: 1.125rem;
+    }
+
+    .nav__sub span {
+      color: var(--tinta-suave);
+      font-family: var(--f-texto);
+      font-size: var(--t-detalle);
+    }
+  }
+
+  .menu {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    padding: var(--e-3) var(--margen) var(--e-6);
+    background: var(--tinta-honda);
+    color: var(--papel);
+    overflow-y: auto;
+  }
+
+  .menu[hidden] {
+    display: none;
+  }
+
+  .menu__cabeza {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--agua);
+  }
+
+  .menu__cabeza .icono-boton:hover {
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  .menu__principal {
+    margin-top: var(--e-5);
+  }
+
+  .menu__principal a {
+    display: block;
+    padding-block: var(--e-2);
+    font-family: var(--f-titulo);
+    font-size: clamp(2.75rem, 14vw, 4rem);
+    line-height: 1.05;
+    font-weight: 380;
+    text-decoration: none;
+    border-bottom: 1px solid rgb(250 246 238 / 0.2);
+  }
+
+  .menu__principal sup {
+    margin-left: var(--e-2);
+    font-family: var(--f-texto);
+    font-size: var(--t-detalle);
+    color: var(--agua);
+    vertical-align: super;
+  }
+
+  .menu__secundario {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--e-1) var(--e-4);
+    margin-top: var(--e-5);
+  }
+
+  .menu__secundario a {
+    display: block;
+    padding-block: var(--e-2);
+    text-decoration: none;
+  }
+
+  @media (min-width: 1024px) {
+    .menu {
+      display: none;
+    }
+  }
+</style>

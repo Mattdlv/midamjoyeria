@@ -1,0 +1,99 @@
+---
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+import { fechaLocal } from '../../../lib/mensaje';
+import { numeroPedido } from '../../../lib/pedidos';
+import { ajustarConteo, leerProductoStock, ventaOtroCanal, type Resultado } from '../../../lib/panel';
+
+export const prerender = false;
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+const id = Astro.params.id ?? '';
+const ruta = `/admin/stock/${id}`;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const nota = typeof f.get('nota') === 'string' ? (f.get('nota') as string).trim().slice(0, 200) || null : null;
+  const entero = (k: string) => {
+    const s = String(f.get(k) ?? '').trim();
+    return /^\d+$/.test(s) ? Number(s) : NaN;
+  };
+  let r: Resultado = { ok: false, error: 'monto' };
+  if (f.get('accion') === 'venta') r = await ventaOtroCanal(env.DB, id, entero('cantidad'), nota, usuario);
+  if (f.get('accion') === 'conteo') r = await ajustarConteo(env.DB, id, entero('previo'), entero('nuevo'), nota, usuario);
+  return Astro.redirect(`${ruta}?aviso=${r.ok ? 'guardado' : r.error}`, 303);
+}
+
+const datos = await leerProductoStock(env.DB, id);
+if (!datos) return new Response('No encontrado', { status: 404 });
+const { producto: p, movimientos } = datos;
+const MOTIVOS: Record<string, string> = {
+  carga_inicial: 'Carga inicial',
+  reserva: 'Reserva de pedido',
+  liberacion: 'Reserva liberada',
+  venta: 'Venta confirmada',
+  venta_otro_canal: 'Venta en otro canal',
+  ajuste: 'Ajuste por conteo',
+  devolucion: 'Devolución',
+};
+---
+
+<Admin titulo={p.nombre} seccion="stock">
+  <a class="tarjeta-pedido__detalle" href="/admin/stock">← Stock</a>
+  <h1>{p.nombre}</h1>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">{p.descripcion} · {p.codigo}</p>
+
+  <div class="detalle">
+    <section class="bloque">
+      <dl class="datos-lista">
+        <div><dt>Disponibles</dt><dd><strong>{p.stock_disponible}</strong></dd></div>
+        <div><dt>Reservadas en pedidos</dt><dd>{p.stock_reservado}</dd></div>
+      </dl>
+      <form class="form-panel" method="post">
+        <h2>Vendí por otro canal</h2>
+        <input type="hidden" name="accion" value="venta" />
+        <div class="form-panel__fila">
+          <div class="campo">
+            <label for="cantidad">Cantidad</label>
+            <input id="cantidad" name="cantidad" inputmode="numeric" value="1" required />
+          </div>
+          <div class="campo">
+            <label for="nota-venta">Nota (opcional)</label>
+            <input id="nota-venta" name="nota" maxlength="200" placeholder="Instagram, en persona…" />
+          </div>
+        </div>
+        <button class="boton boton--borde" type="submit">Descontar</button>
+      </form>
+      <form class="form-panel" method="post">
+        <h2>Conteo físico</h2>
+        <input type="hidden" name="accion" value="conteo" />
+        <input type="hidden" name="previo" value={p.stock_disponible} />
+        <div class="form-panel__fila">
+          <div class="campo">
+            <label for="nuevo">Disponibles reales</label>
+            <input id="nuevo" name="nuevo" inputmode="numeric" value={p.stock_disponible} required />
+          </div>
+          <div class="campo">
+            <label for="nota-conteo">Motivo (opcional)</label>
+            <input id="nota-conteo" name="nota" maxlength="200" />
+          </div>
+        </div>
+        <button class="boton boton--borde" type="submit">Guardar conteo</button>
+      </form>
+    </section>
+
+    <section class="bloque">
+      <h2>Movimientos</h2>
+      <ul class="historial">
+        {movimientos.map((m) => (
+          <li>
+            {m.cantidad > 0 ? '+' : ''}{m.cantidad !== 0 ? m.cantidad : ''} {MOTIVOS[m.motivo] ?? m.motivo}
+            {m.pedido_id && <> · <a href={`/admin/pedidos/${m.pedido_id}`}>{numeroPedido(m.pedido_id)}</a></>}
+            {m.nota && ` · ${m.nota}`}
+            <small>{fechaLocal(m.fecha)} h{m.usuario && ` · ${m.usuario}`}</small>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+</Admin>

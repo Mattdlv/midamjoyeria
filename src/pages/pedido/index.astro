@@ -1,0 +1,35 @@
+---
+import '../../styles/pedido.css';
+import Base from '../../layouts/Base.astro';
+import Checkout from '../../components/Checkout';
+---
+
+<Base titulo="Tu pedido" descripcion="Completá tus datos y cerramos tu pedido por WhatsApp." sinFlotante>
+  <div class="contenedor pagina">
+    <p class="etiqueta">Último acto</p>
+    <h1>Tu <em>pedido</em></h1>
+    <p class="bajada">Dos minutos y lo cerramos por WhatsApp, con una persona real.</p>
+    <Checkout client:load />
+  </div>
+</Base>
+
+<style>
+  .pagina {
+    padding-block: var(--e-5) var(--e-8);
+  }
+
+  .etiqueta {
+    color: var(--oro-texto);
+  }
+
+  h1 {
+    margin-top: var(--e-2);
+    font-size: var(--t-h1);
+    font-weight: 380;
+  }
+
+  .bajada {
+    margin-block: var(--e-2) var(--e-5);
+    color: var(--tinta-suave);
+  }
+</style>
