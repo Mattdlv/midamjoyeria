@@ -21,6 +21,7 @@ const mensaje = datos && {
   nombre: datos.pedido.nombre_entrega,
   items: datos.items.map((i) => ({ nombre: i.nombre_al_comprar, descripcion: i.descripcion_al_comprar, opcion: i.opcion, precio: i.precio_al_comprar, cantidad: i.cantidad })),
   subtotal: datos.pedido.subtotal,
+  descuento: datos.pedido.descuento,
   tipoEntrega: datos.pedido.tipo_entrega,
   cp: datos.pedido.cp,
   metodoPago: datos.pedido.metodo_pago,

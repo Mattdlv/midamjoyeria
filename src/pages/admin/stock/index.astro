@@ -22,10 +22,13 @@ if (Astro.request.method === 'POST') {
 const lista = await listarStock(env.DB, q, agotados);
 ---
 
-<Admin titulo="Stock" seccion="stock">
+<Admin titulo="Productos" seccion="stock">
   <div class="panel-titulo">
-    <h1>Stock</h1>
-    <a class="boton boton--borde boton--chico" href="/admin/exportar/stock.csv">Exportar</a>
+    <h1>Productos</h1>
+    <div class="panel-accion__botones">
+      <a class="boton boton--borde boton--chico" href="/admin/exportar/stock.csv">Exportar</a>
+      <a class="boton boton--chico" href="/admin/productos/nuevo">Nuevo producto</a>
+    </div>
   </div>
   <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-3)">Cargá el mismo día lo que vendas por Instagram o en persona, para que la tienda no venda lo que ya no tenés.</p>
 
@@ -50,6 +53,8 @@ const lista = await listarStock(env.DB, q, agotados);
             <span class="fila-stock__numeros">
               <strong class:list={{ agotado: p.stock_disponible === 0 }}>{p.stock_disponible}</strong> {p.stock_disponible === 1 ? 'disponible' : 'disponibles'}
               {p.stock_reservado > 0 && ` · ${p.stock_reservado} ${p.stock_reservado === 1 ? 'reservada' : 'reservadas'}`}
+              {!p.activo && <span class="chip chip--neutro"> Oculto</span>}
+              {Boolean(p.activo && p.sin_foto) && <span class="chip chip--alerta"> Sin foto</span>}
             </span>
           </a>
           <form method="post">

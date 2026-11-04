@@ -5,18 +5,17 @@ import AddToBag from '../../components/AddToBag';
 import ProductCard, { IconoGiro } from '../../components/ProductCard';
 import SectionHead from '../../components/SectionHead.astro';
 import Doodle from '../../components/Doodle.astro';
-import { CATEGORIAS, completarLook, enlaceWhatsApp, formatoPrecio, notaStock, numeroElenco, productos } from '../../lib/catalogo';
+import { CATEGORIAS, completarLook, enlaceWhatsApp, formatoPrecio, notaStock, numeroElenco } from '../../lib/catalogo';
+import { leerCatalogo } from '../../lib/tienda';
 
-export function getStaticPaths() {
-  return productos.map((p) => ({ params: { slug: p.slug }, props: { producto: p } }));
-}
-
-const { producto: p } = Astro.props;
+const { productos } = await leerCatalogo(Astro.locals);
+const p = productos.find((x) => x.slug === Astro.params.slug);
+if (!p) return Astro.rewrite('/404');
 const categoria = CATEGORIAS.find((c) => c.id === p.categoria)!;
 const queda = notaStock(p.stock);
 const gira = p.lineas.includes('giratoria');
 const esAnillo = p.categoria === 'anillos';
-const look = completarLook(p);
+const look = completarLook(productos, p);
 const consulta = `¡Hola Midam! Tengo una consulta sobre ${p.nombre} (${p.descripcion}).`;
 const consultaTalle = `¡Hola Midam! Quiero saber qué talle me conviene en ${p.nombre}.`;
 const tono = p.variantes?.etiqueta === 'Tono' ? null : { plateado: 'Plateado', dorado: 'Dorado', mixto: 'Varios tonos' }[p.tono];
@@ -44,7 +43,7 @@ const talleTexto = p.regulable ? 'Regulable' : p.talles.length ? p.talles.join('
         <h1>{p.nombre}</h1>
         <p class="ficha__descripcion">{p.descripcion}</p>
         <p class="ficha__precio">
-          <span class="precio">{formatoPrecio(p.precio)}</span>
+          <span class="precio">{p.precioLista && <s class="precio-lista">{formatoPrecio(p.precioLista)}</s>}{formatoPrecio(p.precio)}</span>
           <span class="queda" data-queda>{queda}</span>
         </p>
 

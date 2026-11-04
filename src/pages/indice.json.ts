@@ -1,9 +1,11 @@
-import { productos, textoBusqueda } from '../lib/catalogo';
+import type { APIRoute } from 'astro';
+import { textoBusqueda } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
 
-export const GET = () =>
+export const GET: APIRoute = async ({ locals }) =>
   new Response(
     JSON.stringify(
-      productos.map((p) => ({
+      (await leerCatalogo(locals)).productos.map((p) => ({
         slug: p.slug,
         nombre: p.nombre,
         descripcion: p.descripcion,

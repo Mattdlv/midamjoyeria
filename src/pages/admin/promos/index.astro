@@ -1,0 +1,77 @@
+---
+import { listarLotes, listarPromos } from '../../../lib/admin-catalogo';
+import { CATEGORIAS, formatoPrecio } from '../../../lib/catalogo';
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+import { fechaLocal } from '../../../lib/mensaje';
+import { vigente, type Promo } from '../../../lib/promos';
+
+if (!Astro.locals.usuario) return new Response('No autorizado', { status: 403 });
+
+const [promos, lotes] = await Promise.all([listarPromos(env.DB), listarLotes(env.DB)]);
+const ahora = Date.now();
+const estado = (p: Promo) => {
+  if (!p.activa) return { texto: 'Pausada', clase: 'chip--neutro' };
+  if (p.fin != null && p.fin <= ahora) return { texto: 'Terminó', clase: 'chip--neutro' };
+  if (p.inicio != null && p.inicio > ahora) return { texto: 'Programada', clase: 'chip--neutro' };
+  if (p.usos_max != null && p.usos >= p.usos_max) return { texto: 'Agotada', clase: 'chip--alerta' };
+  return vigente(p, ahora) ? { texto: 'Vigente', clase: 'chip--ok' } : { texto: 'Pausada', clase: 'chip--neutro' };
+};
+const valor = (p: Promo) => (p.tipo === 'porcentaje' ? `${p.valor}%` : formatoPrecio(p.valor));
+const alcance = (p: Promo) => {
+  if (p.alcance === 'todo') return 'toda la tienda';
+  if (p.alcance === 'categoria') return CATEGORIAS.find((c) => c.id === p.objetivo)?.nombre.toLowerCase() ?? 'categoría';
+  const n = (JSON.parse(p.objetivo ?? '[]') as string[]).length;
+  return n === 1 ? '1 pieza' : `${n} piezas`;
+};
+---
+
+<Admin titulo="Promos" seccion="promos">
+  <div class="panel-titulo">
+    <h1>Promos</h1>
+    <div class="panel-accion__botones">
+      <a class="boton boton--borde boton--chico" href="/admin/promos/generar">Generar cupones</a>
+      <a class="boton boton--chico" href="/admin/promos/nueva">Nueva promo</a>
+    </div>
+  </div>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">Sin código, el precio baja solo en la tienda. Con código, es un cupón para escribir en el pedido.</p>
+
+  {lotes.length > 0 && (
+    <ul class="lista-pedidos" style="margin-bottom: var(--e-2)">
+      {lotes.map((l) => (
+        <li>
+          <a class="tarjeta-pedido" href={`/admin/promos/lote/${l.lote}`}>
+            <span class="tarjeta-pedido__numero">{l.nombre}</span>
+            <span class="tarjeta-pedido__total">−{l.tipo === 'porcentaje' ? `${l.valor}%` : formatoPrecio(l.valor)}</span>
+            <span class="tarjeta-pedido__detalle" style="grid-column: 1 / -1">Lote de {l.total} {l.total === 1 ? 'cupón' : 'cupones'} · {l.usados} {l.usados === 1 ? 'usado' : 'usados'}{l.fin != null && ` · hasta el ${fechaLocal(l.fin)} h`}</span>
+            <span class="chips"><span class:list={['chip', l.activos ? 'chip--ok' : 'chip--neutro']}>{l.activos ? 'Activos' : 'Pausados'}</span></span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {promos.length === 0 && lotes.length === 0 ? (
+    <p class="vacio-panel">Todavía no hay promos.</p>
+  ) : (
+    <ul class="lista-pedidos">
+      {promos.map((p) => {
+        const e = estado(p);
+        return (
+          <li>
+            <a class="tarjeta-pedido" href={`/admin/promos/${p.id}`}>
+              <span class="tarjeta-pedido__numero">{p.nombre}</span>
+              <span class="tarjeta-pedido__total">−{valor(p)}</span>
+              <span class="tarjeta-pedido__detalle" style="grid-column: 1 / -1">
+                {p.codigo ? `Cupón ${p.codigo}` : 'Automática'} · {alcance(p)}
+                {p.codigo && ` · ${p.usos}${p.usos_max != null ? ` de ${p.usos_max}` : ''} ${p.usos === 1 ? 'uso' : 'usos'}`}
+                {p.fin != null && ` · hasta el ${fechaLocal(p.fin)} h`}
+              </span>
+              <span class="chips"><span class:list={['chip', e.clase]}>{e.texto}</span></span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</Admin>

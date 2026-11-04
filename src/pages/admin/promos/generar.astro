@@ -1,0 +1,25 @@
+---
+import { generarCupones, listarParaElegir } from '../../../lib/admin-catalogo';
+import FormPromo from '../../../components/FormPromo.astro';
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+
+if (Astro.request.method === 'POST') {
+  const r = await generarCupones(env.DB, await Astro.request.formData(), usuario);
+  return Astro.redirect(r.ok ? `/admin/promos/lote/${r.lote}?aviso=guardado` : `/admin/promos/generar?aviso=${r.error}`, 303);
+}
+const productos = await listarParaElegir(env.DB);
+---
+
+<Admin titulo="Generar cupones" seccion="promos">
+  <a class="tarjeta-pedido__detalle" href="/admin/promos">← Promos</a>
+  <h1 style="margin-bottom: var(--e-2)">Generar cupones</h1>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">Crea muchos códigos distintos con el mismo descuento, para repartir de a uno.</p>
+  <form class="bloque form-panel" method="post">
+    <FormPromo productos={productos} generador />
+    <button class="boton" type="submit">Generar cupones</button>
+  </form>
+</Admin>

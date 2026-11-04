@@ -1,0 +1,85 @@
+---
+import { activarLote, borrarSinUsarLote, leerLote } from '../../../../../lib/admin-catalogo';
+import { formatoPrecio } from '../../../../../lib/catalogo';
+import { env } from '../../../../../lib/entorno';
+import Admin from '../../../../../layouts/Admin.astro';
+import { fechaLocal } from '../../../../../lib/mensaje';
+
+if (!Astro.locals.usuario) return new Response('No autorizado', { status: 403 });
+const lote = Astro.params.lote ?? '';
+const ruta = `/admin/promos/lote/${lote}`;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const accion = f.get('accion');
+  if (accion === 'pausar' || accion === 'activar') await activarLote(env.DB, lote, accion === 'activar');
+  if (accion === 'borrar') {
+    await borrarSinUsarLote(env.DB, lote);
+    const quedan = await leerLote(env.DB, lote);
+    return Astro.redirect(quedan.length ? `${ruta}?aviso=guardado` : '/admin/promos?aviso=guardado', 303);
+  }
+  return Astro.redirect(`${ruta}?aviso=guardado`, 303);
+}
+
+const cupones = await leerLote(env.DB, lote);
+if (!cupones.length) return new Response('No encontrado', { status: 404 });
+const c = cupones[0];
+const usados = cupones.filter((x) => x.usos > 0).length;
+const activo = cupones.some((x) => x.activa);
+const valor = c.tipo === 'porcentaje' ? `${c.valor}%` : formatoPrecio(c.valor);
+---
+
+<Admin titulo={c.nombre} seccion="promos">
+  <a class="tarjeta-pedido__detalle" href="/admin/promos">← Promos</a>
+  <div class="panel-titulo">
+    <h1>{c.nombre}</h1>
+    <span class:list={['chip', activo ? 'chip--ok' : 'chip--neutro']}>{activo ? 'Activos' : 'Pausados'}</span>
+  </div>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">
+    −{valor} · {cupones.length} códigos · {usados} {usados === 1 ? 'usado' : 'usados'}
+    {c.minimo > 0 && ` · compra mínima ${formatoPrecio(c.minimo)}`}
+    {c.fin != null && ` · hasta el ${fechaLocal(c.fin)} h`}
+  </p>
+
+  <section class="bloque">
+    <div class="panel-accion__botones">
+      <button class="boton boton--chico" type="button" id="copiar">Copiar todos</button>
+      <a class="boton boton--borde boton--chico" href={`${ruta}/cupones.csv`}>Bajar CSV</a>
+      <form method="post">
+        <input type="hidden" name="accion" value={activo ? 'pausar' : 'activar'} />
+        <button class="boton boton--borde boton--chico" type="submit">{activo ? 'Pausar todos' : 'Activar todos'}</button>
+      </form>
+    </div>
+    <p role="status" id="copiado" class="campo__ayuda"></p>
+    <ul class="codigos" id="codigos">
+      {cupones.map((x) => (
+        <li>
+          <code>{x.codigo}</code>
+          {x.usos > 0 && <span class="chip chip--neutro">{x.usos_max === 1 ? 'Usado' : `${x.usos} usos`}</span>}
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <details class="peligro">
+    <summary>Borrar los códigos sin usar</summary>
+    <form method="post" data-confirmar="¿Borrar los códigos sin usar? Dejan de funcionar aunque ya los hayas repartido.">
+      <input type="hidden" name="accion" value="borrar" />
+      <p class="tarjeta-pedido__detalle" style="margin-block: var(--e-2)">Dejan de funcionar aunque ya los hayas repartido. Los usados se conservan.</p>
+      <button class="boton boton--peligro" type="submit">Borrar {cupones.length - usados} sin usar</button>
+    </form>
+  </details>
+</Admin>
+
+<script>
+  document.getElementById('copiar')?.addEventListener('click', async () => {
+    const aviso = document.getElementById('copiado')!;
+    const codigos = [...document.querySelectorAll('#codigos code')].map((e) => e.textContent).join('\n');
+    try {
+      await navigator.clipboard.writeText(codigos);
+      aviso.textContent = 'Códigos copiados.';
+    } catch {
+      aviso.textContent = 'No pudimos copiarlos. Bajá el CSV.';
+    }
+  });
+</script>

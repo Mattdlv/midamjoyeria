@@ -463,3 +463,130 @@ body.ingreso {
 .ingreso .panel__aviso {
   margin: 0;
 }
+
+.panel__cabeza {
+  flex-wrap: wrap;
+}
+
+.elegir {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1) var(--e-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.elegir legend {
+  margin-bottom: var(--e-1);
+  font-weight: 500;
+}
+
+.elegir label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  min-height: 2.75rem;
+}
+
+.elegir--lista {
+  display: grid;
+  max-height: 20rem;
+  padding: var(--e-2);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  overflow-y: auto;
+}
+
+.elegir[hidden],
+.campo[hidden] {
+  display: none;
+}
+
+.elegir small {
+  color: var(--tinta-suave);
+  font-size: var(--t-detalle);
+}
+
+.mas-datos summary {
+  min-height: 2.75rem;
+  padding-block: var(--e-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fotos-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-3);
+}
+
+.fotos-panel img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radio);
+}
+
+.fotos-panel div {
+  display: grid;
+  gap: var(--e-1);
+  margin-top: var(--e-2);
+}
+
+.fotos-panel .boton {
+  width: 100%;
+}
+
+.fotos-panel .chip {
+  justify-self: start;
+}
+
+/* Un campo de fecha y hora no entra en media columna de celular. */
+.form-panel__fila--fechas {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.form-panel__fila--fechas input {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 600px) {
+  .form-panel__fila--fechas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.campo-con-boton {
+  display: flex;
+  gap: var(--e-2);
+}
+
+.campo-con-boton input {
+  flex: 1;
+  min-width: 0;
+}
+
+.codigos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--e-1) var(--e-4);
+}
+
+.codigos li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+  min-height: 2.25rem;
+  border-bottom: 1px solid var(--linea-suave);
+}
+
+.codigos code {
+  font-size: var(--t-detalle);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}

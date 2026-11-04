@@ -13,7 +13,8 @@
     "test:panel": "node --test tests/panel.test.mjs",
     "test:acceso": "node --test tests/acceso.test.mjs",
     "db:limpiar": "node scripts/db.mjs archivo db/limpiar-pedidos.sql",
-    "test:ingreso": "node --test tests/ingreso.test.mjs"
+    "test:ingreso": "node --test tests/ingreso.test.mjs",
+    "test:catalogo": "node --test tests/catalogo.test.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.2",

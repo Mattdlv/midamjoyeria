@@ -2,7 +2,9 @@
 import Base from '../layouts/Base.astro';
 import ListingHead from '../components/ListingHead.astro';
 import CatalogBrowser from '../components/CatalogBrowser';
-import { productos } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
+
+const { productos } = await leerCatalogo(Astro.locals);
 ---
 
 <Base titulo="Búsqueda" descripcion="Buscá en el elenco de Midam.">

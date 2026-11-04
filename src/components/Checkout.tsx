@@ -1,6 +1,6 @@
 import type * as React from 'react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ajustarStock, leerBolsa, leerBolsaServidor, suscribir, vaciar } from '../lib/bolsa';
+import { actualizarPrecios, ajustarStock, leerBolsa, leerBolsaServidor, suscribir, vaciar } from '../lib/bolsa';
 import { formatoPrecio } from '../lib/catalogo';
 
 type Errores = Record<string, string>;
@@ -29,6 +29,9 @@ export default function Checkout() {
   const [enviando, setEnviando] = useState(false);
   const [tipoEntrega, setTipoEntrega] = useState<'retiro' | 'envio' | ''>('');
   const [metodoPago, setMetodoPago] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [cuponPedido, setCuponPedido] = useState<string | null>(null);
+  const [cotizacion, setCotizacion] = useState<{ descuento: number; cupon: { codigo: string; nombre: string } | null; errorCupon: string | null } | null>(null);
   const formulario = useRef<HTMLFormElement>(null);
   const aviso = useRef<HTMLDivElement>(null);
 
@@ -53,7 +56,31 @@ export default function Checkout() {
       .catch(() => {});
   }, [slugsBolsa]);
 
+  // El servidor es quien decide precios y descuentos; acá solo se muestra lo que responde.
+  const lineasBolsa = items.map((i) => `${i.slug}|${i.cantidad}`).join(',');
+  useEffect(() => {
+    if (!lineasBolsa) return;
+    let vigente = true;
+    fetch('/api/cotizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: leerBolsa().map((i) => ({ slug: i.slug, cantidad: i.cantidad })), codigo: cuponPedido }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d || !vigente) return;
+        actualizarPrecios(d.precios);
+        setCotizacion(d);
+      })
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, [lineasBolsa, cuponPedido]);
+
   const subtotal = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const descuento = cotizacion?.descuento ?? 0;
+  const cuponValido = cotizacion?.cupon?.codigo ?? null;
 
   const resolverConflictos = () => {
     conflictos.forEach((c) => ajustarStock(c.slug, c.disponibles));
@@ -89,6 +116,7 @@ export default function Checkout() {
           esRegalo: datos.get('esRegalo') === 'on',
           sitio: datos.get('sitio'),
           origen,
+          cupon: cuponValido,
           items: items.map((i) => ({ slug: i.slug, opcion: i.variante, cantidad: i.cantidad })),
         }),
       });
@@ -146,8 +174,18 @@ export default function Checkout() {
         </ul>
         <dl>
           <div><dt>Subtotal</dt><dd className="precio">{formatoPrecio(subtotal)}</dd></div>
+          {descuento > 0 && <div><dt>Descuento ({cuponValido})</dt><dd className="precio">−{formatoPrecio(descuento)}</dd></div>}
+          {descuento > 0 && <div><dt>Total{tipoEntrega === 'retiro' ? '' : ' sin envío'}</dt><dd className="precio">{formatoPrecio(subtotal - descuento)}</dd></div>}
           <div><dt>Envío</dt><dd>{tipoEntrega === 'retiro' ? 'Retiro' : 'A confirmar'}</dd></div>
         </dl>
+        <div className="pedido__cupon">
+          <label htmlFor="cupon">¿Tenés un código de descuento?</label>
+          <div>
+            <input id="cupon" value={codigo} maxLength={20} autoComplete="off" onChange={(e) => setCodigo(e.target.value)} aria-describedby="cupon-estado" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCuponPedido(codigo.trim() || null); } }} />
+            <button type="button" className="boton boton--borde" onClick={() => setCuponPedido(codigo.trim() || null)}>Aplicar</button>
+          </div>
+          <p id="cupon-estado" role="status" className={cotizacion?.errorCupon ? 'campo__error' : 'campo__ayuda'}>{cotizacion?.errorCupon ?? (cotizacion?.cupon ? cotizacion.cupon.nombre : '')}</p>
+        </div>
         <button type="button" className="enlace pedido__editar" onClick={() => window.dispatchEvent(new Event('midam:bolsa'))}>Cambiar piezas</button>
       </section>
 

@@ -8,13 +8,25 @@ import '../styles/admin.css';
 
 interface Props {
   titulo: string;
-  seccion: 'pedidos' | 'stock' | 'ajustes';
+  seccion: 'pedidos' | 'stock' | 'promos' | 'ajustes';
 }
 const { titulo, seccion } = Astro.props;
 const usuario = Astro.locals.usuario;
 
 const MENSAJES: Record<string, string> = {
   guardado: 'Listo, quedó guardado.',
+  creado: 'Producto creado. Sumale al menos una foto para que aparezca en la tienda.',
+  producto_datos: 'Revisá los datos: faltan nombre, descripción, categoría o tono.',
+  talles: 'Revisá los talles: tienen que ser números separados por comas.',
+  promo_datos: 'Revisá los datos de la promo.',
+  promo_valor: 'El descuento tiene que ser mayor a cero y, si es porcentaje, de hasta 90%.',
+  promo_alcance: 'Elegí a qué se aplica la promo.',
+  promo_codigo: 'El código lleva de 3 a 20 letras, números o guiones, sin espacios.',
+  promo_fechas: 'Revisá las fechas: el final tiene que ser después del inicio.',
+  promo_repetida: 'Ya hay una promo con ese código.',
+  lote_cantidad: 'La cantidad de códigos tiene que ser de 1 a 500.',
+  lote_prefijo: 'El prefijo lleva hasta 10 letras o números, sin espacios.',
+  promo_usos: 'El máximo no puede ser menor que los pedidos que ya usaron el cupón.',
   no_existe: 'Ese registro no existe.',
   transicion: 'Ese cambio de estado no es posible ahora.',
   cambio: 'Alguien lo cambió recién. Revisá cómo quedó y volvé a intentar.',
@@ -48,7 +60,8 @@ const esError = Boolean(aviso) && clave !== 'guardado';
       <a class="panel__marca" href="/admin">MIDAM <span>panel</span></a>
       <nav aria-label="Panel">
         <a href="/admin" aria-current={seccion === 'pedidos' ? 'page' : undefined}>Pedidos</a>
-        <a href="/admin/stock" aria-current={seccion === 'stock' ? 'page' : undefined}>Stock</a>
+        <a href="/admin/stock" aria-current={seccion === 'stock' ? 'page' : undefined}>Productos</a>
+        <a href="/admin/promos" aria-current={seccion === 'promos' ? 'page' : undefined}>Promos</a>
         <a href="/admin/ajustes" aria-current={seccion === 'ajustes' ? 'page' : undefined}>Ajustes</a>
       </nav>
     </header>
@@ -66,6 +79,10 @@ const esError = Boolean(aviso) && clave !== 'guardado';
       document.addEventListener('submit', (e) => {
         const f = e.target as HTMLFormElement;
         if (f.method.toLowerCase() !== 'post') return;
+        if (f.dataset.confirmar && !confirm(f.dataset.confirmar)) {
+          e.preventDefault();
+          return;
+        }
         if (f.dataset.enviado) {
           e.preventDefault();
           return;

@@ -3,6 +3,7 @@ import { env } from '../../../lib/entorno';
 import Admin from '../../../layouts/Admin.astro';
 import { fechaLocal } from '../../../lib/mensaje';
 import { numeroPedido } from '../../../lib/pedidos';
+import { ingresarStock } from '../../../lib/admin-catalogo';
 import { ajustarConteo, leerProductoStock, ventaOtroCanal, type Resultado } from '../../../lib/panel';
 
 export const prerender = false;
@@ -19,6 +20,7 @@ if (Astro.request.method === 'POST') {
     return /^\d+$/.test(s) ? Number(s) : NaN;
   };
   let r: Resultado = { ok: false, error: 'monto' };
+  if (f.get('accion') === 'ingreso') r = await ingresarStock(env.DB, id, entero('cantidad'), nota, usuario);
   if (f.get('accion') === 'venta') r = await ventaOtroCanal(env.DB, id, entero('cantidad'), nota, usuario);
   if (f.get('accion') === 'conteo') r = await ajustarConteo(env.DB, id, entero('previo'), entero('nuevo'), nota, usuario);
   return Astro.redirect(`${ruta}?aviso=${r.ok ? 'guardado' : r.error}`, 303);
@@ -39,8 +41,11 @@ const MOTIVOS: Record<string, string> = {
 ---
 
 <Admin titulo={p.nombre} seccion="stock">
-  <a class="tarjeta-pedido__detalle" href="/admin/stock">← Stock</a>
-  <h1>{p.nombre}</h1>
+  <a class="tarjeta-pedido__detalle" href="/admin/stock">← Productos</a>
+  <div class="panel-titulo">
+    <h1>{p.nombre}</h1>
+    <a class="boton boton--borde boton--chico" href={`/admin/productos/${p.id}`}>Editar producto y fotos</a>
+  </div>
   <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">{p.descripcion} · {p.codigo}</p>
 
   <div class="detalle">
@@ -49,6 +54,21 @@ const MOTIVOS: Record<string, string> = {
         <div><dt>Disponibles</dt><dd><strong>{p.stock_disponible}</strong></dd></div>
         <div><dt>Reservadas en pedidos</dt><dd>{p.stock_reservado}</dd></div>
       </dl>
+      <form class="form-panel" method="post">
+        <h2>Entró mercadería</h2>
+        <input type="hidden" name="accion" value="ingreso" />
+        <div class="form-panel__fila">
+          <div class="campo">
+            <label for="cantidad-ingreso">Cantidad</label>
+            <input id="cantidad-ingreso" name="cantidad" inputmode="numeric" value="1" required />
+          </div>
+          <div class="campo">
+            <label for="nota-ingreso">Nota (opcional)</label>
+            <input id="nota-ingreso" name="nota" maxlength="200" placeholder="Proveedor, remito…" />
+          </div>
+        </div>
+        <button class="boton" type="submit">Sumar al stock</button>
+      </form>
       <form class="form-panel" method="post">
         <h2>Vendí por otro canal</h2>
         <input type="hidden" name="accion" value="venta" />

@@ -85,7 +85,7 @@ const envioConfirmado = p?.tipo_entrega === 'retiro' || p?.costo_envio != null;
 
         <dl class="comprobante__totales">
           <div><dt>Subtotal</dt><dd>{formatoPrecio(p.subtotal)}</dd></div>
-          {p.descuento > 0 && <div><dt>Descuento</dt><dd>−{formatoPrecio(p.descuento)}</dd></div>}
+          {p.descuento > 0 && <div><dt>Descuento{p.cupon && ` (${p.cupon})`}</dt><dd>−{formatoPrecio(p.descuento)}</dd></div>}
           <div>
             <dt>Envío</dt>
             <dd>{p.tipo_entrega === 'retiro' ? 'Retiro' : p.costo_envio != null ? formatoPrecio(p.costo_envio) : 'A confirmar'}</dd>

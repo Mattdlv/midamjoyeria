@@ -961,3 +961,9 @@ em {
     transition-duration: 1ms !important;
   }
 }
+
+.precio-lista {
+  margin-right: 0.4em;
+  color: var(--tinta-suave);
+  font-weight: 400;
+}

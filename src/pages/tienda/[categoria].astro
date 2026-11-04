@@ -3,13 +3,12 @@ import Base from '../../layouts/Base.astro';
 import ListingHead from '../../components/ListingHead.astro';
 import CatalogBrowser from '../../components/CatalogBrowser';
 import { CATEGORIAS, porCategoria } from '../../lib/catalogo';
+import { leerCatalogo } from '../../lib/tienda';
 
-export function getStaticPaths() {
-  return CATEGORIAS.map((c) => ({ params: { categoria: c.id }, props: { categoria: c } }));
-}
-
-const { categoria: c } = Astro.props;
-const lista = porCategoria(c.id);
+const c = CATEGORIAS.find((x) => x.id === Astro.params.categoria);
+if (!c) return Astro.rewrite('/404');
+const { productos } = await leerCatalogo(Astro.locals);
+const lista = porCategoria(productos, c.id);
 const notas: Record<string, string> = {
   anillos: 'Paso a recordarte.',
   aros: 'Cuando tu opinión sean unos aros, me la das.',

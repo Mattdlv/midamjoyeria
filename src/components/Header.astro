@@ -1,13 +1,15 @@
 ---
 import BagButton from './BagButton';
 import { CATEGORIAS, porCategoria } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
 
 const actual = Astro.url.pathname;
 const activa = (ruta: string) => actual === ruta || actual.startsWith(ruta + '/');
-const categorias = CATEGORIAS.map((c) => ({ ...c, cantidad: porCategoria(c.id).length }));
+const { productos, franja } = await leerCatalogo(Astro.locals);
+const categorias = CATEGORIAS.map((c) => ({ ...c, cantidad: porCategoria(productos, c.id).length }));
 ---
 
-<div class="franja">Elegís acá, cerramos tu pedido por WhatsApp.</div>
+<div class="franja">{franja ?? 'Elegís acá, cerramos tu pedido por WhatsApp.'}</div>
 <header class="cabecera">
   <div class="contenedor cabecera__fila">
     <button class="icono-boton cabecera__menu" type="button" id="abrir-menu" aria-label="Abrir menú" aria-expanded="false" aria-controls="menu">

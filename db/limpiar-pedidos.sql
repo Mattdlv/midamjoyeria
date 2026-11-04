@@ -10,3 +10,4 @@ DELETE FROM pedido;
 DELETE FROM cliente;
 DELETE FROM sqlite_sequence WHERE name IN ('pedido', 'cliente', 'pago', 'historial_pedido', 'item_pedido');
 DELETE FROM intento_login;
+UPDATE promocion SET usos = 0;

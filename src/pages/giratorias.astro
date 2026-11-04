@@ -3,8 +3,10 @@ import Base from '../layouts/Base.astro';
 import SpinBadge from '../components/SpinBadge.astro';
 import Pending from '../components/Pending.astro';
 import { formatoPrecio, numeroElenco, porLinea } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
 
-const piezas = porLinea('giratoria').sort((a, b) => b.precio - a.precio);
+const { productos } = await leerCatalogo(Astro.locals);
+const piezas = porLinea(productos, 'giratoria').sort((a, b) => b.precio - a.precio);
 ---
 
 <Base titulo="Las que giran" descripcion="La línea giratoria de Midam: piezas con una parte que se mueve con los dedos." mensajeWhatsApp="¡Hola Midam! Quiero saber más de las piezas que giran.">

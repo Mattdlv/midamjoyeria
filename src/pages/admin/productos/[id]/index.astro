@@ -1,0 +1,158 @@
+---
+import { MAX_FOTOS, actualizarProducto, fotoPrincipal, leerFormProducto, leerProducto, quitarFoto } from '../../../../lib/admin-catalogo';
+import { formatoPrecio, type Foto } from '../../../../lib/catalogo';
+import FormProducto from '../../../../components/FormProducto.astro';
+import { env } from '../../../../lib/entorno';
+import Admin from '../../../../layouts/Admin.astro';
+import type { Resultado } from '../../../../lib/panel';
+
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+const id = Astro.params.id ?? '';
+const ruta = `/admin/productos/${id}`;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  const accion = f.get('accion');
+  const url = String(f.get('foto') ?? '');
+  let r: Resultado = { ok: false, error: 'transicion' };
+  if (accion === 'datos') {
+    const leido = leerFormProducto(f);
+    r = leido.ok ? await actualizarProducto(env.DB, id, leido.datos, f.get('activo') === 'on') : leido;
+  }
+  if (accion === 'quitar') r = await quitarFoto(env.DB, id, url);
+  if (accion === 'principal') r = await fotoPrincipal(env.DB, id, url);
+  return Astro.redirect(`${ruta}?aviso=${r.ok ? 'guardado' : r.error}`, 303);
+}
+
+const p = await leerProducto(env.DB, id);
+if (!p) return new Response('No encontrado', { status: 404 });
+const fotos = JSON.parse(p.fotos) as Foto[];
+---
+
+<Admin titulo={p.nombre} seccion="stock">
+  <a class="tarjeta-pedido__detalle" href="/admin/stock">← Productos</a>
+  <div class="panel-titulo">
+    <h1>{p.nombre}</h1>
+    <a class="boton boton--borde boton--chico" href={`/admin/stock/${p.id}`}>Stock: {p.stock_disponible}</a>
+  </div>
+  <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-4)">
+    {p.codigo} · {formatoPrecio(p.precio)}
+    {p.activo && fotos.length > 0 ? <> · <a href={`/productos/${p.slug}`} target="_blank" rel="noopener">Ver en la tienda</a></> : ' · No se ve en la tienda'}
+  </p>
+
+  <div class="detalle">
+    <form class="bloque form-panel" method="post">
+      <h2>Datos</h2>
+      <input type="hidden" name="accion" value="datos" />
+      <FormProducto producto={p} />
+      <label class="marca-regalo"><input type="checkbox" name="activo" checked={Boolean(p.activo)} /> Visible en la tienda</label>
+      <p class="campo__ayuda">Para sacarlo de la venta, destildá "Visible". Los pedidos ya hechos no cambian. Los cambios se ven en la tienda en hasta un minuto.</p>
+      <button class="boton" type="submit">Guardar</button>
+    </form>
+
+    <section class="bloque">
+      <h2>Fotos</h2>
+      {fotos.length === 0 && <p class="aviso-faltante">Sin fotos este producto no aparece en la tienda.</p>}
+      <ul class="fotos-panel">
+        {fotos.map((foto, i) => (
+          <li>
+            <img src={foto.s} alt={`Foto ${i + 1}`} width="210" height="262" loading="lazy" />
+            <div>
+              {i === 0 ? <span class="chip chip--ok">Principal</span> : (
+                <form method="post">
+                  <input type="hidden" name="accion" value="principal" />
+                  <input type="hidden" name="foto" value={foto.m} />
+                  <button class="boton boton--borde boton--chico" type="submit">Hacer principal</button>
+                </form>
+              )}
+              <form method="post" data-confirmar="¿Quitar esta foto?">
+                <input type="hidden" name="accion" value="quitar" />
+                <input type="hidden" name="foto" value={foto.m} />
+                <button class="boton boton--borde boton--chico" type="submit">Quitar</button>
+              </form>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {fotos.length < MAX_FOTOS ? (
+        <div class="campo" data-subir={p.id} data-lugar={MAX_FOTOS - fotos.length}>
+          <label for="subir">Agregar fotos</label>
+          <input id="subir" type="file" accept="image/*" multiple />
+          <p class="campo__ayuda">Hasta {MAX_FOTOS} por producto. Se recortan a formato vertical (4:5) centrado, así que dejá la pieza en el medio.</p>
+          <p role="status" data-estado></p>
+        </div>
+      ) : <p class="campo__ayuda">Llegaste al máximo de {MAX_FOTOS} fotos.</p>}
+    </section>
+  </div>
+</Admin>
+
+<script>
+  const MENSAJES: Record<string, string> = {
+    foto_pesada: 'La foto quedó demasiado pesada.',
+    foto_tipo: 'Ese archivo no es una foto que podamos usar.',
+    foto_limite: 'Este producto ya tiene el máximo de fotos.',
+    cambio: 'Las fotos cambiaron recién. Recargá la página y volvé a intentar.',
+  };
+
+  /** Recorte centrado 4:5. Safari no sabe generar WebP y devuelve PNG: en ese caso se usa JPEG. */
+  const achicar = (img: HTMLImageElement, ancho: number) =>
+    new Promise<Blob>((resolver, rechazar) => {
+      const alto = Math.round((ancho * 5) / 4);
+      const lienzo = document.createElement('canvas');
+      lienzo.width = ancho;
+      lienzo.height = alto;
+      const escala = Math.max(ancho / img.naturalWidth, alto / img.naturalHeight);
+      const w = ancho / escala;
+      const h = alto / escala;
+      const contexto = lienzo.getContext('2d');
+      if (!contexto) return rechazar(new Error('sin lienzo'));
+      contexto.imageSmoothingQuality = 'high';
+      contexto.drawImage(img, (img.naturalWidth - w) / 2, (img.naturalHeight - h) / 2, w, h, 0, 0, ancho, alto);
+      lienzo.toBlob((webp) => {
+        if (webp?.type === 'image/webp') return resolver(webp);
+        lienzo.toBlob((jpeg) => (jpeg ? resolver(jpeg) : rechazar(new Error('sin imagen'))), 'image/jpeg', 0.85);
+      }, 'image/webp', 0.82);
+    });
+
+  const abrir = (archivo: File) =>
+    new Promise<HTMLImageElement>((resolver, rechazar) => {
+      const img = new Image();
+      const url = URL.createObjectURL(archivo);
+      img.onload = () => resolver(img);
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        rechazar(new Error(`No pudimos abrir ${archivo.name}. Probá con una foto JPG o PNG.`));
+      };
+      img.src = url;
+    });
+
+  document.querySelectorAll<HTMLElement>('[data-subir]').forEach((zona) => {
+    const entrada = zona.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const estado = zona.querySelector<HTMLElement>('[data-estado]')!;
+    entrada.addEventListener('change', async () => {
+      const archivos = [...(entrada.files ?? [])].slice(0, Number(zona.dataset.lugar));
+      if (!archivos.length) return;
+      entrada.disabled = true;
+      try {
+        for (const [i, archivo] of archivos.entries()) {
+          estado.textContent = `Subiendo ${i + 1} de ${archivos.length}…`;
+          const img = await abrir(archivo);
+          const datos = new FormData();
+          datos.set('s', await achicar(img, 420), 's');
+          datos.set('m', await achicar(img, 840), 'm');
+          const r = await fetch(`/admin/productos/${zona.dataset.subir}/fotos`, { method: 'POST', body: datos });
+          if (!r.ok) {
+            const cuerpo = await r.json().catch(() => ({}));
+            throw new Error(MENSAJES[cuerpo.error] ?? 'No se pudo subir la foto. Probá de nuevo.');
+          }
+        }
+        location.href = `${location.pathname}?aviso=guardado`;
+      } catch (e) {
+        estado.textContent = e instanceof Error ? e.message : 'No se pudo subir la foto.';
+        entrada.disabled = false;
+        entrada.value = '';
+      }
+    });
+  });
+</script>

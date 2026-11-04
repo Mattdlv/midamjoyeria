@@ -153,6 +153,7 @@ const local = p.whatsapp.replace(/^549/, '');
       </ul>
       <dl class="datos-lista">
         <div><dt>Subtotal</dt><dd>{formatoPrecio(p.subtotal)}</dd></div>
+        {p.descuento > 0 && <div><dt>Descuento{p.cupon && ` (${p.cupon})`}</dt><dd>−{formatoPrecio(p.descuento)}</dd></div>}
         <div><dt>Envío</dt><dd>{p.tipo_entrega === 'retiro' ? 'Retiro' : p.costo_envio == null ? 'A confirmar' : formatoPrecio(p.costo_envio)}</dd></div>
         <div><dt><strong>Total</strong></dt><dd><strong>{formatoPrecio(total)}</strong></dd></div>
         <div><dt>Cobrado</dt><dd>{formatoPrecio(p.pagado)}</dd></div>

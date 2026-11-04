@@ -94,6 +94,14 @@ export const ajustarStock = (slug: string, disponibles: number) => {
   guardar();
 };
 
+/** Los precios pueden cambiar con una promoción después de armar la bolsa. */
+export const actualizarPrecios = (precios: Record<string, number>) => {
+  cargar();
+  if (!items.some((i) => i.slug in precios && precios[i.slug] !== i.precio)) return;
+  items = items.map((i) => (i.slug in precios ? { ...i, precio: precios[i.slug] } : i));
+  guardar();
+};
+
 export const unidadesTope = (slug: string) => {
   cargar();
   return items.filter((i) => i.slug === slug).reduce((a, i) => a + i.cantidad, 0);

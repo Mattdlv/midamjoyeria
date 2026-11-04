@@ -18,6 +18,7 @@ export type PedidoPanel = {
   es_regalo: number;
   subtotal: number;
   descuento: number;
+  cupon: string | null;
   costo_envio: number | null;
   costo_envio_real: number | null;
   seguimiento_empresa: string | null;
@@ -71,7 +72,7 @@ export const BANDEJAS = [
 
 const SELECT_PEDIDO = `
   SELECT p.id, p.token, p.nombre_entrega, c.whatsapp, p.tipo_entrega, p.direccion, p.localidad, p.cp, p.metodo_pago, p.nota, p.es_regalo,
-         p.subtotal, p.descuento, p.costo_envio, p.costo_envio_real, p.seguimiento_empresa, p.seguimiento_codigo, p.link_pago, p.nota_interna,
+         p.subtotal, p.descuento, p.cupon, p.costo_envio, p.costo_envio_real, p.seguimiento_empresa, p.seguimiento_codigo, p.link_pago, p.nota_interna,
          p.estado, p.estado_pago, p.venta_registrada, p.whatsapp_clic_en, p.reserva_vence_en, p.creado, p.origen,
          (SELECT COALESCE(SUM(g.monto), 0) FROM pago g WHERE g.pedido_id = p.id) AS pagado,
          (SELECT COALESCE(SUM(i.cantidad), 0) FROM item_pedido i WHERE i.pedido_id = p.id) AS items_cantidad
@@ -259,11 +260,11 @@ export const extenderReserva = async (db: Base, id: number, horas: number, usuar
 
 // Stock
 
-export type ProductoStock = { id: string; codigo: string; slug: string; nombre: string; descripcion: string; precio: number; stock_disponible: number; stock_reservado: number };
+export type ProductoStock = { id: string; codigo: string; slug: string; nombre: string; descripcion: string; precio: number; stock_disponible: number; stock_reservado: number; activo: number; sin_foto: number };
 
 export const listarStock = async (db: Base, q: string, soloBajo: boolean) => {
   await liberarVencidos(db);
-  const condiciones = ['activo = 1'];
+  const condiciones = ['1 = 1'];
   const parametros: string[] = [];
   if (q.trim()) {
     const parecido = `%${q.trim().replace(/[\\%_]/g, '\\$&')}%`;
@@ -272,7 +273,7 @@ export const listarStock = async (db: Base, q: string, soloBajo: boolean) => {
   }
   if (soloBajo) condiciones.push('stock_disponible = 0');
   const { results } = await db
-    .prepare(`SELECT id, codigo, slug, nombre, descripcion, precio, stock_disponible, stock_reservado FROM producto WHERE ${condiciones.join(' AND ')} ORDER BY nombre`)
+    .prepare(`SELECT id, codigo, slug, nombre, descripcion, precio, stock_disponible, stock_reservado, activo, json_array_length(fotos) = 0 AS sin_foto FROM producto WHERE ${condiciones.join(' AND ')} ORDER BY activo DESC, nombre`)
     .bind(...parametros)
     .all<ProductoStock>();
   return results;
@@ -280,7 +281,7 @@ export const listarStock = async (db: Base, q: string, soloBajo: boolean) => {
 
 export const leerProductoStock = async (db: Base, id: string) => {
   await liberarVencidos(db);
-  const producto = await db.prepare('SELECT id, codigo, slug, nombre, descripcion, precio, stock_disponible, stock_reservado FROM producto WHERE id = ?').bind(id).first<ProductoStock>();
+  const producto = await db.prepare('SELECT id, codigo, slug, nombre, descripcion, precio, stock_disponible, stock_reservado, activo, json_array_length(fotos) = 0 AS sin_foto FROM producto WHERE id = ?').bind(id).first<ProductoStock>();
   if (!producto) return null;
   const { results: movimientos } = await db
     .prepare(`SELECT m.cantidad, m.motivo, m.fecha, m.usuario, m.nota, m.pedido_id FROM movimiento_stock m WHERE m.producto_id = ? ORDER BY m.id DESC LIMIT 50`)
@@ -336,15 +337,15 @@ const celda = (v: unknown) => {
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
 };
-const aCsv = (filas: unknown[][]) => '﻿' + filas.map((f) => f.map(celda).join(';')).join('\r\n') + '\r\n';
+export const aCsv = (filas: unknown[][]) => '﻿' + filas.map((f) => f.map(celda).join(';')).join('\r\n') + '\r\n';
 
 export const exportarPedidos = async (db: Base) => {
   const { results } = await db.prepare(`${SELECT_PEDIDO} ORDER BY p.id DESC`).all<PedidoPanel>();
   return aCsv([
-    ['Pedido', 'Fecha', 'Estado', 'Pago', 'Cliente', 'WhatsApp', 'Entrega', 'Localidad', 'CP', 'Subtotal', 'Envío cobrado', 'Envío real', 'Total', 'Pagado', 'Origen'],
+    ['Pedido', 'Fecha', 'Estado', 'Pago', 'Cliente', 'WhatsApp', 'Entrega', 'Localidad', 'CP', 'Subtotal', 'Descuento', 'Cupón', 'Envío cobrado', 'Envío real', 'Total', 'Pagado', 'Origen'],
     ...results.map((p) => [
       `M-${String(p.id).padStart(4, '0')}`, new Date(p.creado).toISOString(), ESTADOS[p.estado], p.estado_pago, p.nombre_entrega, p.whatsapp, p.tipo_entrega, p.localidad, p.cp,
-      p.subtotal, p.costo_envio, p.costo_envio_real, totalPedido(p), p.pagado, p.origen,
+      p.subtotal, p.descuento, p.cupon, p.costo_envio, p.costo_envio_real, totalPedido(p), p.pagado, p.origen,
     ]),
   ]);
 };

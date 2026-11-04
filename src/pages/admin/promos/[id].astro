@@ -1,0 +1,44 @@
+---
+import { borrarPromo, guardarPromo, leerPromo, listarParaElegir } from '../../../lib/admin-catalogo';
+import FormPromo from '../../../components/FormPromo.astro';
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id)) return new Response('No encontrada', { status: 404 });
+const ruta = `/admin/promos/${id}`;
+
+if (Astro.request.method === 'POST') {
+  const f = await Astro.request.formData();
+  if (f.get('accion') === 'borrar') {
+    const r = await borrarPromo(env.DB, id);
+    return Astro.redirect(r.ok ? '/admin/promos?aviso=guardado' : `${ruta}?aviso=${r.error}`, 303);
+  }
+  const r = await guardarPromo(env.DB, id, f, usuario);
+  return Astro.redirect(`${ruta}?aviso=${r.ok ? 'guardado' : r.error}`, 303);
+}
+
+const promo = await leerPromo(env.DB, id);
+if (!promo) return new Response('No encontrada', { status: 404 });
+const productos = await listarParaElegir(env.DB);
+---
+
+<Admin titulo={promo.nombre} seccion="promos">
+  <a class="tarjeta-pedido__detalle" href="/admin/promos">← Promos</a>
+  <h1 style="margin-bottom: var(--e-4)">{promo.nombre}</h1>
+  {promo.codigo && <p class="tarjeta-pedido__detalle" style="margin-bottom: var(--e-3)">Usada en {promo.usos} {promo.usos === 1 ? 'pedido' : 'pedidos'}. Un pedido cancelado no devuelve el uso.</p>}
+  <form class="bloque form-panel" method="post">
+    <FormPromo promo={promo} productos={productos} />
+    <button class="boton" type="submit">Guardar</button>
+  </form>
+  <details class="peligro">
+    <summary>Borrar promo</summary>
+    <form method="post">
+      <input type="hidden" name="accion" value="borrar" />
+      <p class="tarjeta-pedido__detalle" style="margin-block: var(--e-2)">Los pedidos ya hechos conservan su precio y su descuento.</p>
+      <button class="boton boton--peligro" type="submit">Borrar definitivamente</button>
+    </form>
+  </details>
+</Admin>

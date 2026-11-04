@@ -6,14 +6,22 @@ import SpinBadge from '../components/SpinBadge.astro';
 import Stripes from '../components/Stripes.astro';
 import SectionHead from '../components/SectionHead.astro';
 import Ticket from '../components/Ticket.astro';
-import { CATEGORIAS, CONTACTO, RANGOS, enRango, formatoPrecio, numeroElenco, porCategoria, porLinea, porNombre, productos } from '../lib/catalogo';
+import { CATEGORIAS, CONTACTO, RANGOS, enRango, formatoPrecio, numeroElenco, porCategoria, porLinea } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
 
-const heroe = porNombre('Soraya Montenegro');
-const secundaria = porNombre('Goneril');
-const cartelera = CATEGORIAS.map((c) => ({ ...c, cantidad: porCategoria(c.id).length, pieza: porNombre(c.portada) }));
-const elenco = ['Lady Macbeth', 'Rubí Pérez', 'Clea', 'Miranda Priestly', 'Silenus', 'Regina'].map(porNombre);
-const giratorias = porLinea('giratoria').sort((a, b) => a.precio - b.precio);
-const desde = giratorias[0].precio;
+const { productos } = await leerCatalogo(Astro.locals);
+const porNombre = (nombre: string) => productos.find((p) => p.nombre === nombre);
+// Si se oculta una pieza destacada, otra toma su lugar.
+const heroe = porNombre('Soraya Montenegro') ?? productos.find((p) => p.fotos.length > 1) ?? productos[0];
+const fotoHeroe = heroe?.fotos[1] ?? heroe?.fotos[0];
+const secundaria = porNombre('Goneril') ?? productos.find((p) => p !== heroe);
+const cartelera = CATEGORIAS.map((c) => {
+  const lista = porCategoria(productos, c.id);
+  return { ...c, cantidad: lista.length, pieza: porNombre(c.portada) ?? lista[0] };
+});
+const elenco = ['Lady Macbeth', 'Rubí Pérez', 'Clea', 'Miranda Priestly', 'Silenus', 'Regina'].flatMap((n) => porNombre(n) ?? []);
+const giratorias = porLinea(productos, 'giratoria').sort((a, b) => a.precio - b.precio);
+const desde = giratorias[0]?.precio;
 ---
 
 <Base>
@@ -22,19 +30,19 @@ const desde = giratorias[0].precio;
       <p class="mano heroe__nota">joyas con personalidad, desde La Rioja</p>
       <h1 class="heroe__titulo">La belleza <em>de lo</em> esencial.</h1>
 
-      <a class="heroe__principal" href={`/productos/${heroe.slug}`} aria-label={`${heroe.nombre}: ${heroe.descripcion}, ${formatoPrecio(heroe.precio)}`}>
-        <img src={heroe.fotos[1].m} srcset={`${heroe.fotos[1].s} 420w, ${heroe.fotos[1].m} 840w`} sizes="(min-width: 1024px) 34vw, 72vw" alt="" width="840" height="1050" fetchpriority="high" />
-      </a>
+      {heroe && <a class="heroe__principal" href={`/productos/${heroe.slug}`} aria-label={`${heroe.nombre}: ${heroe.descripcion}, ${formatoPrecio(heroe.precio)}`}>
+        <img src={fotoHeroe!.m} srcset={`${fotoHeroe!.s} 420w, ${fotoHeroe!.m} 840w`} sizes="(min-width: 1024px) 34vw, 72vw" alt="" width="840" height="1050" fetchpriority="high" />
+      </a>}
       <SpinBadge class="heroe__sello" />
-      <div class="heroe__rotulo">
+      {heroe && <div class="heroe__rotulo">
         <span class="etiqueta">{numeroElenco(heroe.numero)}</span>
         <span class="heroe__personaje">{heroe.nombre}</span>
         <span class="heroe__detalle">{heroe.descripcion} · {formatoPrecio(heroe.precio)}</span>
-      </div>
+      </div>}
 
-      <a class="heroe__secundaria" href={`/productos/${secundaria.slug}`} aria-label={`${secundaria.nombre}: ${secundaria.descripcion}`}>
+      {secundaria && <a class="heroe__secundaria" href={`/productos/${secundaria.slug}`} aria-label={`${secundaria.nombre}: ${secundaria.descripcion}`}>
         <img src={secundaria.fotos[0].s} alt="" width="420" height="525" />
-      </a>
+      </a>}
 
       <div class="heroe__accion">
         <div class="heroe__botones">
@@ -57,7 +65,7 @@ const desde = giratorias[0].precio;
             <span class="cartelera__indice">{String(i + 1).padStart(2, '0')}</span>
             <span class="cartelera__nombre">{c.nombre}</span>
             <span class="cartelera__cantidad">{c.cantidad}</span>
-            <img src={c.pieza.fotos[0].s} alt="" width="420" height="525" loading="lazy" />
+            {c.pieza && <img src={c.pieza.fotos[0].s} alt="" width="420" height="525" loading="lazy" />}
           </a>
         </li>
       ))}
@@ -83,7 +91,7 @@ const desde = giratorias[0].precio;
         <p class="etiqueta">Segundo acto</p>
         <h2>Las que <em>giran.</em></h2>
         <p class="giran__bajada">Tienen una parte que se mueve con los dedos. Lindas de mirar y buenísimas para las manos inquietas.</p>
-        <p class="mano giran__nota">desde {formatoPrecio(desde)}</p>
+        {desde != null && <p class="mano giran__nota">desde {formatoPrecio(desde)}</p>}
         <a class="boton boton--claro" href="/giratorias">Ver cómo son</a>
       </div>
       <ul class="giran__piezas">
@@ -106,7 +114,7 @@ const desde = giratorias[0].precio;
   <section class="seccion contenedor">
     <SectionHead acto="Tercer acto" titulo="Para <em>regalar</em>" bajada="¿No sabés qué elegir? Empezá por cuánto querés gastar." />
     <div class="entradas">
-      {RANGOS.map((r, i) => <Ticket href={`/para-regalar#${r.id}`} titulo={r.nombre} nota={r.nota} cantidad={enRango(r.id).length} numero={i + 1} />)}
+      {RANGOS.map((r, i) => <Ticket href={`/para-regalar#${r.id}`} titulo={r.nombre} nota={r.nota} cantidad={enRango(productos, r.id).length} numero={i + 1} />)}
     </div>
   </section>
 

@@ -6,6 +6,7 @@ export type DatosMensaje = {
   nombre: string;
   items: ItemMensaje[];
   subtotal: number;
+  descuento: number;
   tipoEntrega: 'retiro' | 'envio';
   cp: string | null;
   metodoPago: string;
@@ -41,6 +42,7 @@ export const armarMensaje = (d: DatosMensaje) => {
     ...visibles,
     '',
     `Subtotal: ${formatoPrecio(d.subtotal)}`,
+    ...(d.descuento > 0 ? [`Descuento: −${formatoPrecio(d.descuento)}`] : []),
     d.tipoEntrega === 'envio' ? `Envío: a confirmar${d.cp ? ` (CP ${d.cp})` : ''}` : 'Entrega: retiro',
     `Pago: ${(METODOS_PAGO[d.metodoPago] ?? d.metodoPago).toLowerCase()}`,
     `A nombre de: ${d.nombre}`,

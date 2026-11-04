@@ -1,5 +1,4 @@
-import datos from '../data/productos.json';
-
+// Tipos y utilidades del catálogo, sin datos: los productos se leen de la base en lib/tienda.ts.
 export type Foto = { s: string; m: string };
 export type Producto = {
   id: string;
@@ -10,6 +9,8 @@ export type Producto = {
   slug: string;
   categoria: string;
   precio: number;
+  /** Precio sin promoción, solo si hay una vigente. */
+  precioLista: number | null;
   stock: number;
   tono: string;
   lineas: string[];
@@ -19,10 +20,7 @@ export type Producto = {
   material: string | null;
   variantes: { etiqueta: string; opciones: { nombre: string; foto: number | null }[] } | null;
   fotos: Foto[];
-  fotoRecortada: boolean;
 };
-
-export const productos = datos as Producto[];
 
 export const CATEGORIAS = [
   { id: 'anillos', nombre: 'Anillos', promesa: 'Para las manos que hablan.', portada: 'Regina' },
@@ -55,17 +53,12 @@ export const LINEAS = [
 
 export const formatoPrecio = (n: number) => '$' + n.toLocaleString('es-AR');
 export const numeroElenco = (n: number) => 'Nº ' + String(n).padStart(2, '0');
-export const notaStock = (stock: number) => (stock === 1 ? 'Queda 1' : stock <= 3 ? `Quedan ${stock}` : null);
+export const notaStock = (stock: number) => (stock <= 0 ? 'Sin stock' : stock === 1 ? 'Queda 1' : stock <= 3 ? `Quedan ${stock}` : null);
 export const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-export const porNombre = (nombre: string) => {
-  const p = productos.find((x) => x.nombre === nombre);
-  if (!p) throw new Error('Producto no encontrado: ' + nombre);
-  return p;
-};
-export const porCategoria = (id: string) => productos.filter((p) => p.categoria === id);
-export const porLinea = (id: string) => productos.filter((p) => p.lineas.includes(id));
-export const enRango = (id: string) => {
+export const porCategoria = (productos: Producto[], id: string) => productos.filter((p) => p.categoria === id);
+export const porLinea = (productos: Producto[], id: string) => productos.filter((p) => p.lineas.includes(id));
+export const enRango = (productos: Producto[], id: string) => {
   const r = RANGOS.find((x) => x.id === id)!;
   return productos.filter((p) => p.precio >= r.min && p.precio <= r.max);
 };
@@ -78,7 +71,7 @@ export const textoBusqueda = (p: Producto) =>
   normalizar([p.nombre, p.descripcion, p.categoria, p.tono, ...p.lineas, ...(p.variantes?.opciones ?? []).map((o) => o.nombre)].join(' '));
 
 /** Piezas de otra categoría, del mismo tono y precio parecido, para "completá el look". */
-export const completarLook = (p: Producto, cantidad = 4) =>
+export const completarLook = (productos: Producto[], p: Producto, cantidad = 4) =>
   productos
     .filter((x) => x.categoria !== p.categoria && (x.tono === p.tono || x.tono === 'mixto' || p.tono === 'mixto'))
     .sort((a, b) => Math.abs(a.precio - p.precio) - Math.abs(b.precio - p.precio))

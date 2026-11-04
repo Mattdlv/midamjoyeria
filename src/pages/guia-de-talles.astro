@@ -3,8 +3,10 @@ import Base from '../layouts/Base.astro';
 import ListingHead from '../components/ListingHead.astro';
 import Pending from '../components/Pending.astro';
 import { enlaceWhatsApp, porCategoria } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
 
-const talles = [...new Set(porCategoria('anillos').flatMap((p) => p.talles))].sort((a, b) => a - b);
+const { productos } = await leerCatalogo(Astro.locals);
+const talles = [...new Set(porCategoria(productos, 'anillos').flatMap((p) => p.talles))].sort((a, b) => a - b);
 ---
 
 <Base titulo="Guía de talles" descripcion="Cómo elegir el talle de tu anillo de Midam." mensajeWhatsApp="¡Hola Midam! Necesito ayuda con el talle de un anillo.">

@@ -6,10 +6,13 @@ import Ticket from '../components/Ticket.astro';
 import ProductCard from '../components/ProductCard';
 import Pending from '../components/Pending.astro';
 import { RANGOS, enRango } from '../lib/catalogo';
+import { leerCatalogo } from '../lib/tienda';
+
+const { productos } = await leerCatalogo(Astro.locals);
 
 const MUESTRA = 8;
 const bandas = RANGOS.map((r) => {
-  const lista = enRango(r.id);
+  const lista = enRango(productos, r.id);
   // Se alternan categorías para que cada bloque muestre variedad.
   const porTipo = [...new Set(lista.map((p) => p.categoria))].map((c) => lista.filter((p) => p.categoria === c));
   const mezcla = [];

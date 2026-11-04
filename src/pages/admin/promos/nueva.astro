@@ -1,0 +1,24 @@
+---
+import { guardarPromo, listarParaElegir } from '../../../lib/admin-catalogo';
+import FormPromo from '../../../components/FormPromo.astro';
+import { env } from '../../../lib/entorno';
+import Admin from '../../../layouts/Admin.astro';
+
+const usuario = Astro.locals.usuario;
+if (!usuario) return new Response('No autorizado', { status: 403 });
+
+if (Astro.request.method === 'POST') {
+  const r = await guardarPromo(env.DB, null, await Astro.request.formData(), usuario);
+  return Astro.redirect(r.ok ? `/admin/promos/${r.id}?aviso=guardado` : `/admin/promos/nueva?aviso=${r.error}`, 303);
+}
+const productos = await listarParaElegir(env.DB);
+---
+
+<Admin titulo="Nueva promo" seccion="promos">
+  <a class="tarjeta-pedido__detalle" href="/admin/promos">← Promos</a>
+  <h1 style="margin-bottom: var(--e-4)">Nueva promo</h1>
+  <form class="bloque form-panel" method="post">
+    <FormPromo productos={productos} />
+    <button class="boton" type="submit">Crear promo</button>
+  </form>
+</Admin>

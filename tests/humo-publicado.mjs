@@ -1,8 +1,9 @@
-// Comprueba una tienda ya publicada y borra lo que crea. Necesita BASE_URL, DB_URL, DB_TOKEN, EMAIL_PRUEBA y CLAVE_PRUEBA.
+// Comprueba una tienda ya publicada y borra lo que crea. Necesita BASE_URL, DB_URL y DB_TOKEN.
+// Con EMAIL_PRUEBA y CLAVE_PRUEBA prueba además el ingreso y el panel con sesión.
 import { createClient } from '@libsql/client';
 
 const { BASE_URL: BASE, DB_URL, DB_TOKEN, EMAIL_PRUEBA: EMAIL, CLAVE_PRUEBA: CLAVE } = process.env;
-if (!BASE || !DB_URL || !EMAIL || !CLAVE) throw new Error('Faltan variables');
+if (!BASE || !DB_URL) throw new Error('Faltan variables');
 const db = createClient({ url: DB_URL, authToken: DB_TOKEN });
 const SLUG = 'aros-de-flor';
 const TELEFONOS = ['3809990001', '3809990002', '3809990003', '3809990004'];
@@ -79,6 +80,12 @@ try {
     probar('Comprobante con leyenda y privado', comp.ok && texto.includes('no es una factura') && Boolean(comp.headers.get('x-robots-tag')?.includes('noindex')));
   }
 
+  if (!EMAIL || !CLAVE) {
+    console.log('--  Ingreso y panel con sesión: sin probar, faltan EMAIL_PRUEBA y CLAVE_PRUEBA');
+    const mal = await fetch(`${BASE}/admin/ingresar`, { ...manual, method: 'POST', headers: { Origin: BASE, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: 'nadie@midam.invalid', clave: 'incorrecta-de-prueba' }) });
+    probar('Contraseña incorrecta no entra', mal.status === 401, String(mal.status));
+    throw new Error('FIN_SIN_SESION');
+  }
   const mala = await fetch(`${BASE}/admin/ingresar`, { ...manual, method: 'POST', headers: { Origin: BASE, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: `no-${EMAIL}`, clave: 'incorrecta' }) });
   probar('Contraseña incorrecta no entra', mala.status === 401, String(mala.status));
   const ingreso = await fetch(`${BASE}/admin/ingresar`, { ...manual, method: 'POST', headers: { Origin: BASE, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: EMAIL, clave: CLAVE }) });
@@ -101,8 +108,10 @@ try {
     probar('Cancelar devolvió el stock', final.d === 1 && final.r === 0, JSON.stringify(final));
   }
 } catch (e) {
-  fallas++;
-  console.log(`MAL Se cortó la prueba: ${String(e.message ?? e).slice(0, 300)}`);
+  if (e.message !== 'FIN_SIN_SESION') {
+    fallas++;
+    console.log(`MAL Se cortó la prueba: ${String(e.message ?? e).slice(0, 300)}`);
+  }
 } finally {
   await limpiar();
   await db.execute({ sql: 'UPDATE producto SET stock_disponible = ?, stock_reservado = ? WHERE slug = ?', args: [original.d, original.r, SLUG] });

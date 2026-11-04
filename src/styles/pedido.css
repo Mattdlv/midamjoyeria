@@ -467,3 +467,40 @@
     border-color: #000;
   }
 }
+
+.pedido__cupon {
+  margin-top: var(--e-3);
+}
+
+.pedido__cupon label {
+  display: block;
+  margin-bottom: var(--e-1);
+  font-size: var(--t-detalle);
+  font-weight: 500;
+}
+
+.pedido__cupon > div {
+  display: flex;
+  gap: var(--e-2);
+}
+
+.pedido__cupon input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-inline: var(--e-2);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--blanco);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.pedido__cupon .boton {
+  min-height: 2.75rem;
+  padding: var(--e-1) var(--e-3);
+}
+
+.pedido__cupon p:empty {
+  display: none;
+}

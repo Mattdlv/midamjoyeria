@@ -1,0 +1,77 @@
+---
+import { CATEGORIAS, LINEAS, TONOS } from '../lib/catalogo';
+import type { ProductoPanel } from '../lib/admin-catalogo';
+
+interface Props {
+  producto?: ProductoPanel;
+}
+const { producto: p } = Astro.props;
+const lineas: string[] = p ? JSON.parse(p.lineas) : [];
+const talles: number[] = p ? JSON.parse(p.talles) : [];
+const opciones: string[] = p ? JSON.parse(p.opciones) : [];
+---
+
+<div class="campo">
+  <label for="nombre">Nombre</label>
+  <input id="nombre" name="nombre" maxlength="80" required value={p?.nombre} />
+</div>
+<div class="campo">
+  <label for="descripcion">Descripción</label>
+  <input id="descripcion" name="descripcion" maxlength="160" required value={p?.descripcion} placeholder="Aros de argolla labrada" />
+</div>
+<div class="form-panel__fila">
+  <div class="campo">
+    <label for="precio">Precio ($)</label>
+    <input id="precio" name="precio" inputmode="numeric" pattern="[0-9]+" required value={p?.precio} />
+  </div>
+  <slot name="stock" />
+</div>
+<div class="form-panel__fila">
+  <div class="campo">
+    <label for="categoria">Categoría</label>
+    <select id="categoria" name="categoria" required>
+      {CATEGORIAS.map((c) => <option value={c.id} selected={p?.categoria === c.id}>{c.nombre}</option>)}
+    </select>
+  </div>
+  <div class="campo">
+    <label for="tono">Tono</label>
+    <select id="tono" name="tono" required>
+      {TONOS.map((t) => <option value={t.id} selected={p?.tono === t.id}>{t.nombre}</option>)}
+    </select>
+  </div>
+</div>
+<fieldset class="elegir">
+  <legend>Líneas</legend>
+  {LINEAS.map((l) => <label><input type="checkbox" name="lineas" value={l.id} checked={lineas.includes(l.id)} /> {l.nombre}</label>)}
+</fieldset>
+<details class="mas-datos" open={Boolean(p && (p.medida || p.material || talles.length || opciones.length || p.regulable))}>
+  <summary>Talles, opciones y más datos</summary>
+  <div class="form-panel">
+    <div class="form-panel__fila">
+      <div class="campo">
+        <label for="material">Material</label>
+        <input id="material" name="material" maxlength="60" value={p?.material} />
+      </div>
+      <div class="campo">
+        <label for="medida">Medida</label>
+        <input id="medida" name="medida" maxlength="60" value={p?.medida} />
+      </div>
+    </div>
+    <div class="campo">
+      <label for="talles">Talles</label>
+      <input id="talles" name="talles" maxlength="80" value={talles.join(', ')} placeholder="16, 17, 18" />
+    </div>
+    <label class="marca-regalo"><input type="checkbox" name="regulable" checked={Boolean(p?.regulable)} /> Es regulable</label>
+    <div class="form-panel__fila">
+      <div class="campo">
+        <label for="etiqueta">Nombre de la opción</label>
+        <input id="etiqueta" name="etiqueta" maxlength="30" value={p?.etiqueta_opcion} placeholder="Talle o Tono" />
+      </div>
+      <div class="campo">
+        <label for="opciones">Opciones a elegir</label>
+        <input id="opciones" name="opciones" maxlength="400" value={opciones.join(', ')} placeholder="Dorado, Plateado" />
+      </div>
+    </div>
+    <p class="campo__ayuda">Separadas con comas. Si cargás opciones, quien compra tiene que elegir una.</p>
+  </div>
+</details>

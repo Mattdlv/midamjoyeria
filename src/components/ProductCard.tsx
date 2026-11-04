@@ -42,7 +42,7 @@ export default function ProductCard({ producto: p, ancho = '(min-width: 1200px) 
         <span className="tarjeta__nombre" style={{ fontFamily: 'var(--f-titulo)' }}>{p.nombre}</span>
         <span className="tarjeta__descripcion">{p.descripcion}</span>
         <span className="tarjeta__pie">
-          <span className="precio">{formatoPrecio(p.precio)}</span>
+          <span className="precio">{p.precioLista && <s className="precio-lista">{formatoPrecio(p.precioLista)}</s>}{formatoPrecio(p.precio)}</span>
           {queda && <span className="queda">{queda}</span>}
         </span>
       </span>

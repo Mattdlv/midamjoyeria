@@ -2,8 +2,18 @@ import { defineMiddleware } from 'astro:middleware';
 import { getSecret } from 'astro:env/server';
 import { COOKIE_SESION, autorizar, esRutaIngreso, esRutaPanel } from './lib/acceso';
 
+// Las páginas públicas salen de la CDN. Un cambio en el panel se ve en hasta un minuto; el stock real y el precio final
+// se consultan aparte, así que un dato viejo en pantalla no permite vender de más ni cobrar otro precio.
+const CACHE_PUBLICA = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
+const esPublicaCacheable = (ruta: string) => !ruta.startsWith('/api/') && !/^\/pedido\/./.test(ruta);
+
 export const onRequest = defineMiddleware(async (ctx, next) => {
-  if (ctx.isPrerendered || !esRutaPanel(ctx.url.pathname)) return next();
+  if (ctx.isPrerendered) return next();
+  if (!esRutaPanel(ctx.url.pathname)) {
+    const r = await next();
+    if (ctx.request.method === 'GET' && r.status === 200 && !r.headers.has('Cache-Control') && esPublicaCacheable(ctx.url.pathname)) r.headers.set('Cache-Control', CACHE_PUBLICA);
+    return r;
+  }
 
   const usuario = await autorizar(ctx.cookies.get(COOKIE_SESION)?.value, ctx.url, {
     secreto: getSecret('SESION_SECRETO'),

@@ -1,0 +1,111 @@
+---
+import { CATEGORIAS } from '../lib/catalogo';
+import { fechaParaFormulario, type Promo } from '../lib/promos';
+
+interface Props {
+  promo?: Promo;
+  productos: { id: string; nombre: string; descripcion: string; categoria: string }[];
+  /** Al generar en lote, los códigos los crea el sistema. */
+  generador?: boolean;
+}
+const { promo: p, productos, generador = false } = Astro.props;
+const elegidos: string[] = p?.alcance === 'productos' ? JSON.parse(p.objetivo ?? '[]') : [];
+const alcance = p?.alcance ?? 'todo';
+---
+
+<div class="campo">
+  <label for="nombre">Nombre</label>
+  <input id="nombre" name="nombre" maxlength="80" required value={p?.nombre} placeholder="20% en aros" />
+  <p class="campo__ayuda">{generador ? 'Quien usa el cupón ve este texto en su pedido.' : 'Si es una promoción sin código, este texto aparece en la franja de arriba de la tienda.'}</p>
+</div>
+<div class="form-panel__fila">
+  <div class="campo">
+    <label for="tipo">Tipo de descuento</label>
+    <select id="tipo" name="tipo">
+      <option value="porcentaje" selected={p?.tipo !== 'monto'}>Porcentaje (%)</option>
+      <option value="monto" selected={p?.tipo === 'monto'}>Monto fijo ($)</option>
+    </select>
+  </div>
+  <div class="campo">
+    <label for="valor">Valor</label>
+    <input id="valor" name="valor" inputmode="numeric" pattern="[0-9]+" required value={p?.valor} />
+  </div>
+</div>
+<p class="campo__ayuda">{generador ? 'Hasta 90%. Un monto fijo se descuenta una sola vez por pedido.' : 'Hasta 90%. Sin código, un monto fijo se descuenta de cada pieza; con código, una sola vez por pedido.'}</p>
+
+<div class="campo">
+  <label for="alcance">¿A qué se aplica?</label>
+  <select id="alcance" name="alcance">
+    <option value="todo" selected={alcance === 'todo'}>Toda la tienda</option>
+    <option value="categoria" selected={alcance === 'categoria'}>Una categoría</option>
+    <option value="productos" selected={alcance === 'productos'}>Piezas que elijo</option>
+  </select>
+</div>
+<div class="campo" data-para="categoria" hidden={alcance !== 'categoria'}>
+  <label for="categoria">Categoría</label>
+  <select id="categoria" name="categoria">
+    {CATEGORIAS.map((c) => <option value={c.id} selected={p?.alcance === 'categoria' && p.objetivo === c.id}>{c.nombre}</option>)}
+  </select>
+</div>
+<fieldset class="elegir elegir--lista" data-para="productos" hidden={alcance !== 'productos'}>
+  <legend>Piezas</legend>
+  {productos.map((x) => <label><input type="checkbox" name="productos" value={x.id} checked={elegidos.includes(x.id)} /> {x.nombre} <small>{x.descripcion}</small></label>)}
+</fieldset>
+
+<div class="form-panel__fila form-panel__fila--fechas">
+  <div class="campo">
+    <label for="inicio">Empieza (opcional)</label>
+    <input id="inicio" name="inicio" type="datetime-local" value={fechaParaFormulario(p?.inicio ?? null)} />
+  </div>
+  <div class="campo">
+    <label for="fin">Termina (opcional)</label>
+    <input id="fin" name="fin" type="datetime-local" value={fechaParaFormulario(p?.fin ?? null)} />
+  </div>
+</div>
+
+{generador ? (
+  <div class="form-panel__fila">
+    <div class="campo">
+      <label for="cantidad">Cantidad de códigos</label>
+      <input id="cantidad" name="cantidad" inputmode="numeric" pattern="[0-9]+" required value="10" />
+    </div>
+    <div class="campo">
+      <label for="prefijo">Prefijo (opcional)</label>
+      <input id="prefijo" name="prefijo" maxlength="10" pattern="[A-Za-z0-9]*" placeholder="NAVIDAD" autocomplete="off" />
+    </div>
+  </div>
+  <p class="campo__ayuda">Hasta 500 por vez. Con prefijo quedan así: NAVIDAD-7KQ2M9XA.</p>
+) : (
+  <div class="campo">
+    <label for="codigo">Código de cupón (opcional)</label>
+    <div class="campo-con-boton">
+      <input id="codigo" name="codigo" maxlength="20" value={p?.codigo} placeholder="AMIGAS20" autocomplete="off" />
+      <button class="boton boton--borde boton--chico" type="button" id="inventar">Generar</button>
+    </div>
+    <p class="campo__ayuda">Sin código, el precio baja solo y se ve tachado en la tienda. Con código, se aplica cuando lo escriben en el pedido.</p>
+  </div>
+)}
+<div class="form-panel__fila" data-para-cupon>
+  <div class="campo">
+    <label for="minimo">Compra mínima ($)</label>
+    <input id="minimo" name="minimo" inputmode="numeric" pattern="[0-9]*" value={p?.minimo || ''} />
+  </div>
+  <div class="campo">
+    <label for="usos_max">{generador ? 'Usos por código' : 'Máximo de pedidos'}</label>
+    <input id="usos_max" name="usos_max" inputmode="numeric" pattern="[0-9]*" value={generador ? '1' : (p?.usos_max ?? '')} />
+  </div>
+</div>
+{!generador && <label class="marca-regalo"><input type="checkbox" name="activa" checked={p ? Boolean(p.activa) : true} /> Activa</label>}
+
+<script>
+  import { generarCodigo } from '../lib/promos';
+
+  const codigo = document.querySelector<HTMLInputElement>('#codigo');
+  document.querySelector('#inventar')?.addEventListener('click', () => {
+    if (codigo) codigo.value = generarCodigo();
+  });
+
+  const alcance = document.querySelector<HTMLSelectElement>('#alcance');
+  const actualizar = () => document.querySelectorAll<HTMLElement>('[data-para]').forEach((e) => (e.hidden = e.dataset.para !== alcance?.value));
+  alcance?.addEventListener('change', actualizar);
+</script>

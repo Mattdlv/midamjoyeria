@@ -1,6 +1,6 @@
 # Tienda Midam
 
-Tienda en Astro, TypeScript y React, publicada en Vercel con base de datos Turso. El catálogo es estático; los pedidos, el stock, el comprobante y el panel corren en funciones de Vercel. El pago y el cierre son por WhatsApp.
+Tienda en Astro, TypeScript y React, publicada en Vercel con base de datos Turso. Las páginas se generan en funciones de Vercel con el catálogo de la base, y la CDN las guarda un minuto. El pago y el cierre son por WhatsApp.
 
 ## Ejecutar
 
@@ -38,8 +38,9 @@ La base local es un archivo en la carpeta temporal del sistema (`midam-local`). 
 | `npm run test:acceso` | Prueba permisos y sesiones; no necesita servidor |
 | `npm run test:pedidos` | Prueba pedidos contra el servidor en marcha (`BASE_URL` para otro puerto). Modifica el stock local |
 | `npm run test:panel` | Prueba el panel de la misma forma |
+| `npm run test:catalogo` | Prueba productos, fotos, promos y cupones de la misma forma; borra lo que crea |
 | `npm run test:ingreso` | Prueba el ingreso real. Requiere un servidor sin `ADMIN_DEV_EMAIL` y las variables `EMAIL_PRUEBA` y `CLAVE_PRUEBA` |
-| `npm run db:seed` | Carga los productos que falten; no pisa stock ni precios existentes |
+| `npm run db:seed` | Carga los productos que falten y completa sus datos de catálogo; no pisa stock, precios ni lo editado en el panel |
 | `npm run db:limpiar` | Borra los pedidos y vuelve el stock a la carga inicial. Solo para desarrollo |
 | `node scripts/db.mjs consulta "SELECT ..."` | Ejecuta una consulta. Usa `DB_URL` y `DB_TOKEN` si están definidas; si no, la base local |
 | `node scripts/crear-usuario.mjs persona@ejemplo.com` | Genera la entrada de `ADMIN_USUARIOS` para una persona del panel |
@@ -55,13 +56,24 @@ La base local es un archivo en la carpeta temporal del sistema (`midam-local`). 
 
 ## Panel
 
-`/admin` gestiona pedidos, cobros, stock y ajustes. Lo protege `src/middleware.ts`, que falla cerrado: sin configuración válida no entra nadie.
+`/admin` gestiona pedidos, cobros, productos, fotos, stock, promos y ajustes. Lo protege `src/middleware.ts`, que falla cerrado: sin configuración válida no entra nadie.
 
 - **Producción:** ingreso con mail y contraseña en `/admin/ingresar`. Las personas habilitadas están en `ADMIN_USUARIOS`, con la contraseña como hash, y la sesión es una cookie firmada con `SESION_SECRETO` que dura 7 días. Cambiar la contraseña o sacar a alguien cierra sus sesiones.
 - **Intentos:** 5 fallidos por persona e IP, o 20 por IP, bloquean durante 15 minutos.
 - **Local:** `ADMIN_DEV_EMAIL` en `.env` entra sin contraseña, solo desde localhost. No se carga en Vercel.
 
 Un cambio de estado corre en una transacción que exige el estado leído, así que un doble clic no mueve el stock dos veces.
+
+## Catálogo y promos
+
+La base es la fuente del catálogo: `src/data/productos.json` solo sirve para la carga inicial.
+
+- **Productos:** un producto aparece en la tienda si está visible y tiene al menos una foto. El enlace y el código no cambian al editarlo. No se borran, se ocultan, porque los pedidos los referencian.
+- **Fotos:** el navegador las recorta a 4:5 y las achica a 420 y 840 px antes de subirlas. Se guardan en la tabla `imagen` y se sirven desde `/fotos/[id]` con caché permanente.
+- **Promos sin código:** bajan el precio a la vista, tachando el anterior. Si hay varias, vale la más barata para quien compra, no se acumulan. La más reciente vigente aparece en la franja superior.
+- **Cupones:** promos con código que se aplican en el pedido, una por pedido. Un pedido cancelado o vencido no devuelve el uso.
+- **Generador:** `/admin/promos/generar` crea hasta 500 códigos al azar con el mismo descuento, de un uso cada uno salvo que se indique otra cosa. Cada código es una fila de `promocion`, y la columna `lote` los agrupa para copiarlos, exportarlos o pausarlos juntos.
+- **Precios:** el servidor calcula precio y descuento al crear el pedido. La caché solo puede mostrar un dato de hasta un minuto atrás; `/api/cotizar` actualiza la bolsa antes de pedir.
 
 ## Publicar
 
@@ -84,7 +96,9 @@ Las cuentas y los cambios en Hostinger los hace quien administra el proyecto, id
 4. **Variables,** en Settings > Environment Variables: `DB_URL`, `DB_TOKEN`, `ADMIN_USUARIOS` y `SESION_SECRETO` (al menos 32 caracteres al azar). No cargar `ADMIN_DEV_EMAIL`.
 5. **Primera prueba en la dirección `.vercel.app`:** `node tests/humo-publicado.mjs`, con `BASE_URL`, `DB_URL`, `DB_TOKEN`, `EMAIL_PRUEBA` y `CLAVE_PRUEBA` definidas. Prueba compra, comprobante, panel y cambio de estado, y borra sus datos.
 6. **Dominio.** En Vercel, Settings > Domains, agregar `midamjoyeria.shop` y `www.midamjoyeria.shop`. En Hostinger, DNS / Nameservers, cargar los registros que indique Vercel y borrar el `A` y el `CNAME` de `www` de la página de estacionamiento. Los nameservers no se cambian.
-7. **Redirigir** `www` a la raíz desde Settings > Domains.
+7. **Redirigir** entre `www` y la raíz desde Settings > Domains.
+
+**Actualizar una tienda ya publicada:** correr primero `npm run db:migrar` y `npm run db:seed` contra Turso, y recién después publicar el código. Las migraciones solo agregan datos, así que la versión anterior sigue funcionando mientras tanto; al revés, la versión nueva falla sin ellas.
 
 ## Antes de vender
 

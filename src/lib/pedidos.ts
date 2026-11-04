@@ -1,6 +1,7 @@
 // Lógica de pedidos en el servidor. Solo se importa desde rutas con `prerender = false`.
 import type { Base, Sentencia } from './db';
 import { METODOS_PAGO } from './mensaje';
+import { evaluarCupon, normalizarCodigo, precioConPromos, type Promo } from './promos';
 
 export type LineaEntrada = { slug: string; opcion: string | null; cantidad: number };
 export type EntradaPedido = {
@@ -14,6 +15,7 @@ export type EntradaPedido = {
   nota: string | null;
   esRegalo: boolean;
   origen: string | null;
+  cupon: string | null;
   items: LineaEntrada[];
 };
 
@@ -31,6 +33,7 @@ export type FilaPedido = {
   es_regalo: number;
   subtotal: number;
   descuento: number;
+  cupon: string | null;
   costo_envio: number | null;
   seguimiento_empresa: string | null;
   seguimiento_codigo: string | null;
@@ -59,6 +62,7 @@ type FilaProducto = {
   opciones: string;
   etiqueta_opcion: string | null;
   activo: number;
+  categoria: string | null;
 };
 
 export const numeroPedido = (id: number) => 'M-' + String(id).padStart(4, '0');
@@ -136,6 +140,7 @@ export const validarEntrada = (b: unknown): { entrada: EntradaPedido } | { error
       nota: texto(d.nota, 280),
       esRegalo: d.esRegalo === true,
       origen: texto(d.origen, 120),
+      cupon: texto(d.cupon, 20),
       items,
     },
   };
@@ -167,6 +172,39 @@ export const liberarVencidos = async (db: Base, ahora = Date.now()) => {
   ]);
 };
 
+export const leerPromosAutomaticas = async (db: Base) => (await db.prepare('SELECT * FROM promocion WHERE codigo IS NULL AND activa = 1 ORDER BY id DESC').all<Promo>()).results;
+const leerCupon = (db: Base, codigo: string) => db.prepare('SELECT * FROM promocion WHERE codigo = ?').bind(normalizarCodigo(codigo)).first<Promo>();
+
+export type Cotizacion = {
+  precios: Record<string, number>;
+  subtotal: number;
+  descuento: number;
+  cupon: { codigo: string; nombre: string } | null;
+  errorCupon: string | null;
+};
+
+/** Lo que costaría la bolsa ahora, para mostrarlo antes de pedir. No reserva nada. */
+export const cotizar = async (db: Base, items: { slug: string; cantidad: number }[], codigo: string | null, ahora = Date.now()): Promise<Cotizacion> => {
+  const slugs = [...new Set(items.map((i) => i.slug))];
+  if (!slugs.length) return { precios: {}, subtotal: 0, descuento: 0, cupon: null, errorCupon: null };
+  const [{ results: filas }, promos] = await Promise.all([
+    db.prepare(`SELECT id, slug, precio, categoria FROM producto WHERE activo = 1 AND slug IN (${slugs.map(() => '?').join(',')})`).bind(...slugs).all<{ id: string; slug: string; precio: number; categoria: string | null }>(),
+    leerPromosAutomaticas(db),
+  ]);
+  const precios = Object.fromEntries(filas.map((f) => [f.slug, precioConPromos(f.precio, f, promos, ahora)]));
+  const lineas = items.flatMap((i) => {
+    const f = filas.find((x) => x.slug === i.slug);
+    return f ? [{ id: f.id, categoria: f.categoria, precio: precios[i.slug], cantidad: i.cantidad }] : [];
+  });
+  const subtotal = lineas.reduce((a, l) => a + l.precio * l.cantidad, 0);
+  if (!codigo) return { precios, subtotal, descuento: 0, cupon: null, errorCupon: null };
+  const promo = await leerCupon(db, codigo);
+  const r = evaluarCupon(promo, lineas, ahora);
+  return r.ok
+    ? { precios, subtotal, descuento: r.descuento, cupon: { codigo: promo!.codigo!, nombre: promo!.nombre }, errorCupon: null }
+    : { precios, subtotal, descuento: 0, cupon: null, errorCupon: r.mensaje };
+};
+
 export type Conflicto = { slug: string; nombre: string; disponibles: number };
 export type ResultadoCrear =
   | { ok: true; id: number; token: string; numero: string }
@@ -195,7 +233,7 @@ export const crearPedido = async (db: Base, e: EntradaPedido, o: Opciones): Prom
   // Se unifican líneas iguales y se toma todo de la base; lo que manda el navegador solo elige qué y cuánto.
   const slugs = [...new Set(e.items.map((i) => i.slug))];
   const { results: filas } = await db
-    .prepare(`SELECT id, slug, nombre, descripcion, precio, stock_disponible, opciones, etiqueta_opcion, activo FROM producto WHERE slug IN (${slugs.map(() => '?').join(',')})`)
+    .prepare(`SELECT id, slug, nombre, descripcion, precio, stock_disponible, opciones, etiqueta_opcion, activo, categoria FROM producto WHERE slug IN (${slugs.map(() => '?').join(',')})`)
     .bind(...slugs)
     .all<FilaProducto>();
   const porSlug = new Map(filas.map((f) => [f.slug, f]));
@@ -214,7 +252,18 @@ export const crearPedido = async (db: Base, e: EntradaPedido, o: Opciones): Prom
 
   const porProducto = new Map<string, number>();
   for (const l of lineas.values()) porProducto.set(l.slug, (porProducto.get(l.slug) ?? 0) + l.cantidad);
-  const subtotal = [...lineas.values()].reduce((a, l) => a + porSlug.get(l.slug)!.precio * l.cantidad, 0);
+  const promos = await leerPromosAutomaticas(db);
+  const precios = new Map(filas.map((f) => [f.slug, precioConPromos(f.precio, f, promos, ahora)]));
+  const subtotal = [...lineas.values()].reduce((a, l) => a + precios.get(l.slug)! * l.cantidad, 0);
+
+  let descuento = 0;
+  let cupon: Promo | null = null;
+  if (e.cupon) {
+    cupon = await leerCupon(db, e.cupon);
+    const r = evaluarCupon(cupon, [...lineas.values()].map((l) => ({ id: porSlug.get(l.slug)!.id, categoria: porSlug.get(l.slug)!.categoria, precio: precios.get(l.slug)!, cantidad: l.cantidad })), ahora);
+    if (!r.ok) return { ok: false, codigo: 'invalido', mensaje: r.mensaje };
+    descuento = r.descuento;
+  }
 
   const token = crearToken();
   const vence = ahora + o.horasReserva * 3_600_000;
@@ -223,16 +272,18 @@ export const crearPedido = async (db: Base, e: EntradaPedido, o: Opciones): Prom
   const sentencias: Sentencia[] = [
     db.prepare(`INSERT INTO cliente (whatsapp, nombre, creado) VALUES (?, ?, ?) ON CONFLICT (whatsapp) DO UPDATE SET nombre = excluded.nombre`).bind(e.whatsapp, e.nombre, ahora),
     db.prepare(
-      `INSERT INTO pedido (token, cliente_id, nombre_entrega, tipo_entrega, direccion, localidad, cp, metodo_pago, nota, es_regalo, subtotal, reserva_vence_en, creado, ip_hash, origen)
-       VALUES (?, (SELECT id FROM cliente WHERE whatsapp = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(token, e.whatsapp, e.nombre, e.tipoEntrega, e.direccion, e.localidad, e.cp, e.metodoPago, e.nota, e.esRegalo ? 1 : 0, subtotal, vence, ahora, o.ipHash, e.origen),
+      `INSERT INTO pedido (token, cliente_id, nombre_entrega, tipo_entrega, direccion, localidad, cp, metodo_pago, nota, es_regalo, subtotal, descuento, cupon, reserva_vence_en, creado, ip_hash, origen)
+       VALUES (?, (SELECT id FROM cliente WHERE whatsapp = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(token, e.whatsapp, e.nombre, e.tipoEntrega, e.direccion, e.localidad, e.cp, e.metodoPago, e.nota, e.esRegalo ? 1 : 0, subtotal, descuento, cupon?.codigo ?? null, vence, ahora, o.ipHash, e.origen),
   ];
+  // Si era el último uso del cupón y otro pedido llegó antes, el CHECK de la tabla revierte todo el pedido.
+  if (cupon) sentencias.push(db.prepare('UPDATE promocion SET usos = usos + 1 WHERE id = ?').bind(cupon.id));
   for (const l of lineas.values()) {
     const p = porSlug.get(l.slug)!;
     sentencias.push(
       db.prepare(
         `INSERT INTO item_pedido (pedido_id, producto_id, nombre_al_comprar, descripcion_al_comprar, opcion, precio_al_comprar, cantidad) VALUES ((${idPedido}), ?, ?, ?, ?, ?, ?)`,
-      ).bind(token, p.id, p.nombre, p.descripcion, l.opcion, p.precio, l.cantidad),
+      ).bind(token, p.id, p.nombre, p.descripcion, l.opcion, precios.get(l.slug)!, l.cantidad),
     );
   }
   for (const [slug, cantidad] of porProducto) {
@@ -247,6 +298,7 @@ export const crearPedido = async (db: Base, e: EntradaPedido, o: Opciones): Prom
   try {
     await db.batch(sentencias);
   } catch (err) {
+    if (/cupon_agotado/i.test(String(err))) return { ok: false, codigo: 'invalido', mensaje: 'Ese código se terminó recién. Sacalo para seguir con tu pedido.' };
     if (!/CHECK constraint/i.test(String(err))) throw err;
     const { results } = await db
       .prepare(`SELECT slug, nombre, stock_disponible FROM producto WHERE slug IN (${slugs.map(() => '?').join(',')})`)
@@ -269,7 +321,7 @@ export const leerPedido = async (db: Base, token: string) => {
   const pedido = await db
     .prepare(
       `SELECT p.id, p.token, p.nombre_entrega, c.whatsapp, p.tipo_entrega, p.direccion, p.localidad, p.cp, p.metodo_pago, p.nota, p.es_regalo,
-              p.subtotal, p.descuento, p.costo_envio, p.seguimiento_empresa, p.seguimiento_codigo, p.link_pago, p.estado, p.estado_pago, p.reserva_vence_en, p.creado
+              p.subtotal, p.descuento, p.cupon, p.costo_envio, p.seguimiento_empresa, p.seguimiento_codigo, p.link_pago, p.estado, p.estado_pago, p.reserva_vence_en, p.creado
        FROM pedido p JOIN cliente c ON c.id = p.cliente_id WHERE p.token = ?`,
     )
     .bind(token)

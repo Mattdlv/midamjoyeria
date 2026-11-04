@@ -7,9 +7,10 @@ process.env.MIDAM_DB_LOCAL ??= urlBaseLocal();
 
 const secreto = () => envField.string({ context: 'server', access: 'secret', optional: true });
 
-// El sitio sigue siendo estático; solo las rutas con `prerender = false` corren en una función de Vercel.
+// Las páginas se generan en una función de Vercel con el catálogo de la base; la CDN las guarda un minuto (ver middleware).
 export default defineConfig({
   site: 'https://midamjoyeria.shop',
+  output: 'server',
   integrations: [react()],
   adapter: vercel(),
   security: {
